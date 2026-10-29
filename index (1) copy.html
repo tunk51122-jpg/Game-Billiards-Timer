@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="my" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game & Billiards Timer — Beta v2 Safe Mode</title>
+    
+    <!-- PWA External Manifest & iOS Support -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Game & Billiards Timer Beta">
+    <meta name="theme-color" content="#0b0f19">
+    <link rel="apple-touch-icon" href="./icon-180.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Padauk:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Padauk', 'Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root[data-theme="dark"] {
+            --bg-main: #0b0f19;
+            --bg-card: rgba(17, 24, 39, 0.85);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --accent-primary: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.35);
+            --accent-text: #818cf8;
+        }
+
+        :root[data-theme="light"] {
+            --bg-main: #f8fafc;
+            --bg-card: rgba(255, 255, 255, 0.95);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --text-main: #0f172a;
+            --accent-primary: #4f46e5;
+            --accent-glow: rgba(79, 70, 229, 0.2);
+            --accent-text: #4338ca;
+        }
+
+        :root[data-theme="emerald"] {
+            --bg-main: #022c22;
+            --bg-card: rgba(6, 78, 59, 0.85);
+            --border-color: rgba(52, 211, 153, 0.15);
+            --text-main: #ecfdf5;
+            --accent-primary: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.35);
+            --accent-text: #34d399;
+        }
+
+        :root[data-theme="ocean"] {
+            --bg-main: #082f49;
+            --bg-card: rgba(12, 74, 110, 0.85);
+            --border-color: rgba(56, 189, 248, 0.15);
+            --text-main: #f0f9ff;
+            --accent-primary: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.35);
+            --accent-text: #38bdf8;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .accent-btn {
+            background-color: var(--accent-primary);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .accent-btn:hover { filter: brightness(1.1); }
+        .accent-text { color: var(--accent-text); }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 8px #10b981; }
+            50% { box-shadow: 0 0 22px #10b981; }
+        }
+
+        .active-glow { animation: pulseGlow 2.5s infinite; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .mobile-bottom-nav button { flex: 1 1 0; min-width: 0; padding-left: 1px; padding-right: 1px; }
+        .mobile-bottom-nav button span { white-space: nowrap; font-size: 9px; }
+        .game-device-btn { min-height: 40px; touch-action: manipulation; }
+        .touch-target { min-height: 44px; touch-action: manipulation; }
+        .station-customer-btn { min-height: 42px; width: 100%; text-align: left; }
+        .pool-filter-btn { min-height: 38px; touch-action: manipulation; }
+        .station-card { border-radius: 1rem; transition: border-color .2s ease, background-color .2s ease; }
+        :root[data-theme="dark"] .station-card.device-ps4 { border-color: rgba(16,185,129,.42); }
+        :root[data-theme="dark"] .station-card.device-ps5 { border-color: rgba(249,115,22,.42); }
+        :root[data-theme="dark"] .station-card.device-computer { border-color: rgba(56,189,248,.42); }
+        :root[data-theme="dark"] .station-card.station-running { background: linear-gradient(160deg, rgba(249,115,22,.18), rgba(17,24,39,.94) 52%); border-color: rgba(249,115,22,.75); }
+        :root[data-theme="light"] body { background: #f3f6fb; color: #0f172a; }
+        :root[data-theme="light"] .beta-safe-notice { background: #fffbeb !important; color: #92400e !important; border-color: #fcd34d !important; }
+        :root[data-theme="light"] .glass-card { background: rgba(255,255,255,.96); border-color: #dbe3ee; color: #0f172a; box-shadow: 0 5px 18px rgba(15,23,42,.06); }
+        :root[data-theme="light"] .text-white { color: #0f172a !important; }
+        :root[data-theme="light"] .text-gray-300 { color: #334155 !important; }
+        :root[data-theme="light"] .text-gray-400 { color: #64748b !important; }
+        :root[data-theme="light"] .text-gray-500 { color: #64748b !important; }
+        :root[data-theme="light"] .bg-slate-950\/50, :root[data-theme="light"] .bg-slate-950\/40, :root[data-theme="light"] .bg-slate-950\/30, :root[data-theme="light"] .bg-slate-900\/50, :root[data-theme="light"] .bg-slate-900\/40 { background-color: #f1f5f9 !important; }
+        :root[data-theme="light"] .bg-slate-950, :root[data-theme="light"] .bg-slate-900, :root[data-theme="light"] .bg-slate-800 { background-color: #e9eff7 !important; }
+        :root[data-theme="light"] .border-gray-800, :root[data-theme="light"] .border-gray-700 { border-color: #d7e0ec !important; }
+        :root[data-theme="light"] input, :root[data-theme="light"] select { color: #0f172a !important; background-color: #f8fafc !important; border-color: #cbd5e1 !important; }
+        :root[data-theme="light"] .text-emerald-400, :root[data-theme="light"] .text-emerald-300 { color: #047857 !important; }
+        :root[data-theme="light"] .text-indigo-300, :root[data-theme="light"] .text-indigo-400 { color: #4338ca !important; }
+        :root[data-theme="light"] .text-amber-400, :root[data-theme="light"] .text-amber-300 { color: #92400e !important; }
+        :root[data-theme="light"] .text-orange-300 { color: #c2410c !important; }
+        :root[data-theme="light"] .text-sky-300 { color: #0369a1 !important; }
+        :root[data-theme="light"] .bg-indigo-950\/80, :root[data-theme="light"] .bg-indigo-950\/40 { background-color: #e0e7ff !important; }
+        :root[data-theme="light"] .bg-emerald-950 { background-color: #d1fae5 !important; }
+        :root[data-theme="light"] .bg-amber-950 { background-color: #fef3c7 !important; }
+        :root[data-theme="light"] .station-card.device-ps4 { border-color: #6ee7b7; border-left-width: 3px; }
+        :root[data-theme="light"] .station-card.device-ps5 { border-color: #fdba74; border-left-width: 3px; }
+        :root[data-theme="light"] .station-card.device-computer { border-color: #7dd3fc; border-left-width: 3px; }
+        :root[data-theme="light"] .station-card.station-running { border-color: #fb923c; }
+        @media (max-width: 390px) { .mobile-bottom-nav button i { width: 15px !important; height: 15px !important; } .mobile-bottom-nav button span { font-size: 8px; } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans pb-24 select-none">
+    <div id="networkStatus" role="status" aria-live="polite" class="hidden fixed top-0 left-0 right-0 z-[80] bg-amber-600 text-white text-xs text-center font-bold px-3 py-2 shadow-lg">Internet မရှိပါ — ဖုန်းထဲ သိမ်းထားသောဒေတာဖြင့် Offline အသုံးပြုနေသည်။</div>
+
+    <!-- ANDROID AUTO INSTALL PROMPT BANNER (Realme / Android Supported) -->
+    <div id="installContainer" class="fixed bottom-16 left-3 right-3 z-50 hidden glass-card p-4 rounded-2xl border border-indigo-500/50 shadow-2xl flex items-center justify-between gap-3 bg-slate-900/95">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl accent-btn flex items-center justify-center text-white font-bold text-base">GBT</div>
+            <div>
+                <h4 class="text-xs font-bold text-white" data-i18n="installPromptTitle">App ကို ဖုန်းတွင် Install တင်ရန်</h4>
+                <p class="text-[10px] text-gray-400" data-i18n="installPromptSub">Home Screen သို့ ချက်ချင်း ထည့်သွင်းပါ</p>
+            </div>
+        </div>
+        <button onclick="triggerInstall()" class="px-4 py-2 accent-btn text-white font-bold rounded-xl text-xs cursor-pointer shadow-lg">Install Now</button>
+    </div>
+
+    <!-- AUTH OVERLAY -->
+    <div id="authOverlay" class="fixed inset-0 z-50 bg-[#0b0f19]/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-sm rounded-3xl p-6 text-center space-y-5 shadow-2xl border border-indigo-500/25">
+            <div class="w-14 h-14 rounded-2xl accent-btn mx-auto flex items-center justify-center font-extrabold text-white text-xl">GBT</div>
+            <div>
+                <h1 class="text-lg font-bold text-white" data-i18n="loginTitle">အကောင့်ဝင်ရန် (Login)</h1>
+                <p class="text-xs text-gray-400 mt-0.5">Game & Billiards Timer</p>
+            </div>
+            <div class="space-y-3 text-left text-xs">
+                <div>
+                    <label class="text-gray-400 block mb-1" data-i18n="emailLabel">အီးမေးလ် (Email)</label>
+                    <input type="email" id="authEmail" placeholder="owner@shop.com" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none">
+                </div>
+                <div>
+                    <label class="text-gray-400 block mb-1" data-i18n="passLabel">စကားဝှက် (Password)</label>
+                    <input type="password" id="authPassword" placeholder="••••••••" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2.5 text-white outline-none">
+                </div>
+            </div>
+            <button onclick="handleAuthSubmit()" class="w-full py-3 accent-btn text-xs font-bold text-white rounded-xl shadow-lg transition active:scale-95 cursor-pointer" data-i18n="loginBtn">အကောင့်ဝင်မည်</button>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER -->
+    <header class="sticky top-0 z-30 glass-card border-b px-4 py-3 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-xl accent-btn flex items-center justify-center font-extrabold text-white text-sm">GBT</div>
+            <h1 class="text-sm font-bold tracking-wide" id="headerShopName">Game & Billiards Timer</h1>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openSettingsModal()" class="p-2 rounded-xl glass-card text-gray-300 hover:text-white cursor-pointer flex items-center gap-1 text-xs">
+                <i data-lucide="sliders" class="w-4 h-4"></i> <span data-i18n="settingsNav">ဆက်တင်</span>
+            </button>
+            <button onclick="logout()" class="p-2 rounded-xl glass-card text-red-400 hover:text-red-300 cursor-pointer"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+        </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="flex-grow container mx-auto px-3 py-4 max-w-4xl space-y-5">
+        <div class="beta-safe-notice rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] leading-relaxed text-amber-200" role="status">
+            <strong>Beta Safe Mode:</strong> မူလ Firebase Account ဖြင့် Login ဝင်နိုင်သည်။ ဒီ Beta မှ ပြင်ထားသောဒေတာကို လက်ရှိဖုန်း/Browser ထဲတွင်သာ သိမ်းမည်ဖြစ်ပြီး မူလ Cloud စာရင်းကို မရေးပါ။ ဖုန်းအခြားတစ်လုံးသို့ မအလိုအလျောက် Sync လုပ်သေးပါ။
+        </div>
+        <!-- TAB 1: GAMING STATIONS (PS4 / PS5 / COMPUTER) -->
+        <div id="tab-ps4" class="tab-content space-y-3">
+            <div class="flex justify-between items-center px-1 gap-2">
+                <div class="min-w-0">
+                    <h2 class="text-sm font-bold flex items-center gap-1.5"><i data-lucide="gamepad-2" class="accent-text w-4 h-4"></i> ဂိမ်းစက်များ</h2>
+                    <p class="text-[10px] text-gray-400 mt-1">PS4 · PS5 · Computer</p>
+                </div>
+                <button onclick="addNewStation(activeGameDevice)" class="accent-btn text-white px-3 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-pointer shrink-0"><i data-lucide="plus" class="w-3.5 h-3.5"></i> စက်အသစ်</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2 p-1 rounded-xl bg-slate-900/40 border border-gray-800">
+                <button id="gameDeviceBtn-ps4" onclick="selectGameDevice('ps4')" class="game-device-btn py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white">🎮 PS4</button>
+                <button id="gameDeviceBtn-ps5" onclick="selectGameDevice('ps5')" class="game-device-btn py-2 rounded-lg text-xs font-bold text-gray-400">🎮 PS5</button>
+                <button id="gameDeviceBtn-computer" onclick="selectGameDevice('computer')" class="game-device-btn py-2 rounded-lg text-xs font-bold text-gray-400">🖥️ Computer</button>
+            </div>
+            <div id="gamePanel-ps4" class="game-device-panel"><div id="ps4Grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div></div>
+            <div id="gamePanel-ps5" class="game-device-panel hidden"><div id="ps5Grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div></div>
+            <div id="gamePanel-computer" class="game-device-panel hidden"><div id="computerGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div></div>
+            <p class="text-[10px] text-gray-500 px-1">Free ရန်တွက်ချိန်တွင် PS4၊ PS5၊ Computer အခပေးကစားချိန်ကို ပေါင်းတွက်မည်။ Customer ကို စက်ကတ်ပေါ်မှ ရွေးပါ။</p>
+        </div>
+
+        <!-- TAB 2: POOL TABLES — grouped by size -->
+        <div id="tab-pool" class="tab-content hidden space-y-3">
+            <div class="flex flex-wrap justify-between items-center px-1 gap-2">
+                <div>
+                    <h2 class="text-sm font-bold flex items-center gap-1.5"><i data-lucide="circle-dot" class="accent-text w-4 h-4"></i> <span data-i18n="poolTab">ဘိလိယက်ခုံများ</span></h2>
+                    <p class="text-[10px] text-gray-400 mt-1">ခုံသေးနှင့် ခုံကြီးကို သီးခြားစီ စီမံနိုင်သည်။</p>
+                </div>
+                <div class="flex gap-1.5">
+                    <button onclick="addNewPoolTable('small')" class="accent-btn text-white px-2.5 py-2 rounded-lg text-[10px] font-bold touch-target">＋ ခုံသေး</button>
+                    <button onclick="addNewPoolTable('large')" class="accent-btn text-white px-2.5 py-2 rounded-lg text-[10px] font-bold touch-target">＋ ခုံကြီး</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-2 p-1 rounded-xl bg-slate-900/40 border border-gray-800">
+                <button id="poolFilter-all" onclick="setPoolFilter('all')" class="pool-filter-btn rounded-lg text-xs font-bold bg-indigo-600 text-white">အားလုံး</button>
+                <button id="poolFilter-small" onclick="setPoolFilter('small')" class="pool-filter-btn rounded-lg text-xs font-bold text-gray-400">ခုံသေး</button>
+                <button id="poolFilter-large" onclick="setPoolFilter('large')" class="pool-filter-btn rounded-lg text-xs font-bold text-gray-400">ခုံကြီး</button>
+            </div>
+            <div id="poolGrid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- TAB 3: POS -->
+        <div id="tab-pos" class="tab-content hidden space-y-3">
+            <div class="flex justify-between items-center px-1">
+                <div>
+                    <h2 class="text-sm font-bold flex items-center gap-1.5"><i data-lucide="shopping-bag" class="accent-text w-4 h-4"></i> <span data-i18n="posTab">မုန့်နှင့် အဖျော်ယမကာများ</span></h2>
+                </div>
+                <button onclick="addNewProductPrompt()" class="accent-btn text-white px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"><i data-lucide="plus" class="w-3.5 h-3.5"></i> <span data-i18n="newProduct">ပစ္စည်းအသစ်</span></button>
+            </div>
+            
+            <div class="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
+                <button onclick="filterPosCategory('ALL')" id="posCat-ALL" class="px-2.5 py-1 rounded-lg font-semibold bg-indigo-600 text-white whitespace-nowrap cursor-pointer" data-i18n="catAll">အားလုံး</button>
+                <button onclick="filterPosCategory('DRINKS')" id="posCat-DRINKS" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer" data-i18n="catDrinks">အချိုရည်</button>
+                <button onclick="filterPosCategory('SNACKS')" id="posCat-SNACKS" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer" data-i18n="catSnacks">စားစရာ</button>
+                <button onclick="filterPosCategory('BEER')" id="posCat-BEER" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer" data-i18n="catBeer">ဘီယာ</button>
+                <button onclick="filterPosCategory('LIQUOR')" id="posCat-LIQUOR" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer" data-i18n="catLiquor">အရက်</button>
+                <button onclick="filterPosCategory('CIGARETTE')" id="posCat-CIGARETTE" class="px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer" data-i18n="catCig">ဆေးလိပ်</button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5" id="posGrid"></div>
+        </div>
+
+        <!-- TAB 4: ANALYTICS -->
+        <div id="tab-analytics" class="tab-content hidden space-y-4">
+            <div class="px-1 flex justify-between items-center">
+                <h2 class="text-sm font-bold flex items-center gap-1.5"><i data-lucide="bar-chart-3" class="accent-text w-4 h-4"></i> <span data-i18n="analyticsTab">ဝင်ငွေနှင့် ဂရပ်များ</span></h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="glass-card p-4 rounded-xl space-y-1">
+                    <div class="text-[11px] text-gray-400" data-i18n="totalRev">စုစုပေါင်း ဝင်ငွေ</div>
+                    <div class="text-xl font-bold accent-text" id="analyticsTotalRevenue">0 ကျပ်</div>
+                </div>
+                <div class="glass-card p-4 rounded-xl space-y-1">
+                    <div class="text-[11px] text-gray-400" data-i18n="gameRev">ဆော့ချိန် ရငွေ</div>
+                    <div class="text-lg font-bold text-emerald-400" id="analyticsGameRevenue">0 ကျပ်</div>
+                </div>
+                <div class="glass-card p-4 rounded-xl space-y-1">
+                    <div class="text-[11px] text-gray-400" data-i18n="posRev">POS စားသောက်ကုန် ရငွေ</div>
+                    <div class="text-lg font-bold text-amber-400" id="analyticsPosRevenue">0 ကျပ်</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="glass-card p-4 rounded-2xl space-y-2">
+                    <h3 class="text-xs font-bold text-gray-300" data-i18n="peakHoursTitle">နာရီအလိုက် လူစည်ကားမှု (Peak Hours)</h3>
+                    <div class="h-48 relative"><canvas id="hourlyChart"></canvas></div>
+                </div>
+                <div class="glass-card p-4 rounded-2xl space-y-2">
+                    <h3 class="text-xs font-bold text-gray-300" data-i18n="weeklyTrendTitle">တစ်ပတ်အတွင်း ဝင်ငွေနှုန်း (Weekly Trend)</h3>
+                    <div class="h-48 relative"><canvas id="weeklyChart"></canvas></div>
+                </div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between gap-2"><h3 class="text-xs font-bold">နောက်ဆုံး အရောင်းမှတ်တမ်း ၁၀ ခု</h3><button onclick="exportSalesHistoryCsv()" class="text-[10px] px-2 py-1 rounded-lg border border-gray-700">CSV ထုတ်ရန်</button></div>
+                <div id="salesHistoryList" class="space-y-2"><p class="text-xs text-gray-500">အရောင်းမှတ်တမ်း မရှိသေးပါ။</p></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CUSTOMER / PROMOTION -->
+        <div id="tab-customers" class="tab-content hidden space-y-4">
+            <div class="flex items-start justify-between gap-3 px-1">
+                <div>
+                    <h2 class="text-base font-bold flex items-center gap-2"><i data-lucide="users" class="accent-text w-5 h-5"></i> Customer စာရင်း</h2>
+                    <p class="text-[11px] text-gray-400 mt-1">ဖုန်းနံပါတ်မလိုပါ — နာမည်နှင့် Customer Code ကို အသုံးပြုပါ။</p>
+                </div>
+                <button onclick="openCustomerModal()" class="accent-btn text-white px-3 py-2 rounded-xl text-xs font-bold shrink-0"><i data-lucide="user-plus" class="w-4 h-4 inline"></i> အသစ်ထည့်</button>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div class="glass-card p-3 rounded-xl"><div class="text-[10px] text-gray-400">Customer</div><div id="customerMetricCount" class="text-xl font-extrabold accent-text">0</div></div>
+                <div class="glass-card p-3 rounded-xl"><div class="text-[10px] text-gray-400">Free စောင့်ဆိုင်း</div><div id="customerMetricApproval" class="text-xl font-extrabold text-amber-400">0</div></div>
+                <div class="glass-card p-3 rounded-xl"><div class="text-[10px] text-gray-400">Free လက်ကျန်</div><div id="customerMetricFree" class="text-xl font-extrabold text-emerald-400">0 မိ</div></div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 space-y-2">
+                <div class="flex items-center justify-between gap-2"><div class="font-bold text-xs">လက်ရှိ Promotion</div><span class="text-[10px] px-2 py-1 rounded-full bg-indigo-500/15 accent-text">စက် ၃ မျိုးပေါင်း</span></div>
+                <div class="text-xs text-gray-300">အခပေးကစားချိန် <strong id="customerPromoThresholdLabel" class="text-white">10 နာရီ</strong> ပြည့်တိုင်း Free <strong id="customerPromoRewardLabel" class="text-emerald-400">1 နာရီ</strong> ရခွင့်ရှိမယ်။ Owner/Admin အတည်ပြုပြီးမှ ပေးမယ်။</div>
+                <button onclick="openSettingsModal();document.getElementById('settingPromoThreshold').focus()" class="w-full py-2 rounded-lg border border-gray-700 bg-slate-900/40 text-xs font-semibold">Promotion ကို ဆက်တင်ထဲမှာ ပြောင်းမယ်</button>
+            </div>
+            <div class="glass-card rounded-2xl p-3 space-y-3">
+                <div class="font-bold text-xs flex items-center gap-2"><i data-lucide="shield-check" class="text-amber-400 w-4 h-4"></i> Free အတည်ပြုရန်</div>
+                <div id="customerApprovals" class="space-y-2"><p class="text-xs text-gray-500">အတည်ပြုရန် မရှိသေးပါ။</p></div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 space-y-3">
+                <div class="flex items-center gap-2 border border-gray-700 bg-slate-950/40 rounded-xl px-3 py-2"><i data-lucide="search" class="w-4 h-4 text-gray-400"></i><input id="customerSearch" type="search" placeholder="နာမည် / Customer Code ရှာရန်" class="w-full bg-transparent text-xs outline-none text-white" autocomplete="off"></div>
+                <div class="flex items-center justify-between"><div class="font-bold text-xs">Customer များ</div><div class="text-[10px] text-gray-500">အခပေးကစားချိန်အလိုက်</div></div>
+                <div id="customerList" class="space-y-2"><p class="text-xs text-gray-500">Customer မရှိသေးပါ။ “အသစ်ထည့်” ကိုနှိပ်ပါ။</p></div>
+            </div>
+            <div class="glass-card rounded-2xl p-3 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2"><div class="font-bold text-xs flex items-center gap-2"><i data-lucide="chart-no-axes-combined" class="accent-text w-4 h-4"></i> Customer Analysis</div><select id="customerAnalysisPeriod" onchange="renderCustomerSystem()" class="bg-slate-900 border border-gray-700 rounded-lg text-[10px] px-2 py-1.5"><option value="all">သမိုင်းအားလုံး</option><option value="month">ယခုလ</option><option value="week">ယခုအပတ်</option><option value="today">ယနေ့</option></select></div>
+                <div id="customerAnalysis" class="space-y-2"><p class="text-xs text-gray-500">Customer ကစားမှုမှတ်တမ်း ရှိလာလျှင် ပြသမည်။</p></div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="exportCustomerCsv()" class="flex-1 min-w-[120px] py-2 rounded-xl border border-gray-700 text-xs font-semibold"><i data-lucide="file-spreadsheet" class="w-4 h-4 inline"></i> History CSV</button>
+                <button onclick="backupCustomerData()" class="flex-1 min-w-[120px] py-2 rounded-xl border border-gray-700 text-xs font-semibold"><i data-lucide="download" class="w-4 h-4 inline"></i> Customer Backup</button>
+            </div>
+            <div id="customerHistoryPanel" class="hidden glass-card rounded-2xl p-3 space-y-2"></div>
+        </div>
+
+    </main>
+
+    <!-- BOTTOM NAV -->
+    <nav class="fixed bottom-0 left-0 right-0 z-40 glass-card border-t border-gray-800/80 px-2 py-2 bg-opacity-95 backdrop-blur-md">
+        <div class="max-w-2xl mx-auto flex justify-around items-center text-[10px] gap-1 mobile-bottom-nav">
+            <button onclick="switchTab('ps4')" id="nav-ps4" class="nav-item flex flex-col items-center gap-0.5 text-indigo-400 cursor-pointer"><i data-lucide="gamepad-2" class="w-4 h-4"></i><span>ဂိမ်း</span></button>
+            <button onclick="switchTab('pool')" id="nav-pool" class="nav-item flex flex-col items-center gap-0.5 text-gray-500 cursor-pointer"><i data-lucide="circle-dot" class="w-4 h-4"></i><span data-i18n="poolTab">ဘိလိယက်</span></button>
+            <button onclick="switchTab('pos')" id="nav-pos" class="nav-item flex flex-col items-center gap-0.5 text-gray-500 cursor-pointer"><i data-lucide="shopping-bag" class="w-4 h-4"></i><span data-i18n="posTab">မုန့်/ဘီယာ</span></button>
+            <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-item flex flex-col items-center gap-0.5 text-gray-500 cursor-pointer"><i data-lucide="bar-chart-3" class="w-4 h-4"></i><span>Analysis</span></button>
+            <button onclick="switchTab('customers')" id="nav-customers" class="nav-item flex flex-col items-center gap-0.5 text-gray-500 cursor-pointer"><i data-lucide="users" class="w-4 h-4"></i><span>Customer</span></button>
+        </div>
+    </nav>
+
+    <div id="customerToast" role="status" class="hidden fixed bottom-20 left-3 right-3 z-[90] rounded-xl bg-emerald-700 text-white text-xs font-bold text-center p-3 shadow-xl"></div>
+
+    <!-- STATION CUSTOMER PICKER: mobile-friendly replacement for hard-to-use inline select -->
+    <div id="stationCustomerModal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] hidden flex items-center justify-center p-3">
+        <div class="glass-card w-full max-w-md rounded-2xl p-4 space-y-3 max-h-[88vh] flex flex-col border border-indigo-500/30">
+            <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0"><h3 class="font-bold text-sm" id="stationCustomerPickerTitle">Customer ရွေးရန်</h3><p class="text-[10px] text-gray-400 mt-1">နာမည် သို့မဟုတ် Customer Code ဖြင့် ရှာပါ။</p></div>
+                <button type="button" onclick="closeStationCustomerPicker()" class="text-gray-400 p-2 rounded-lg" aria-label="ပိတ်ရန်"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <input id="stationCustomerSearch" type="search" autocomplete="off" placeholder="Customer နာမည် / Code ရှာရန်" class="w-full bg-slate-900 border border-gray-700 rounded-xl px-3 py-3 text-sm text-white outline-none">
+            <div id="stationCustomerList" class="space-y-2 overflow-y-auto min-h-0 flex-1"><p class="text-xs text-gray-500">Customer များကို ဖော်ပြနေသည်။</p></div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button type="button" onclick="openCustomerCreateFromPicker()" class="py-3 rounded-xl border border-gray-700 text-xs font-bold"><i data-lucide="user-plus" class="w-4 h-4 inline"></i> အသစ်ထည့်</button>
+                <button type="button" onclick="chooseStationCustomerAsGuest()" class="py-3 rounded-xl bg-slate-800 text-xs font-bold">Guest အဖြစ်</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER ADD MODAL -->
+    <div id="customerModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[65] hidden flex items-center justify-center p-4">
+        <form onsubmit="createCustomerFromModal(event)" class="glass-card w-full max-w-sm rounded-2xl p-5 space-y-4 border border-indigo-500/30">
+            <div class="flex justify-between items-center"><h3 class="font-bold text-sm">Customer အသစ်ထည့်ရန်</h3><button type="button" onclick="closeCustomerModal()" class="text-gray-400 p-1"><i data-lucide="x" class="w-4 h-4"></i></button></div>
+            <div><label class="block text-xs text-gray-400 mb-1">နာမည် *</label><input id="customerNameInput" required maxlength="80" class="w-full bg-slate-900 border border-gray-700 rounded-xl px-3 py-3 text-sm text-white outline-none" placeholder="ဥပမာ - ကိုအောင်"></div>
+            <div><label class="block text-xs text-gray-400 mb-1">ခွဲခြားမှတ်ချက် (မဖြစ်မနေမလို)</label><input id="customerAliasInput" maxlength="100" class="w-full bg-slate-900 border border-gray-700 rounded-xl px-3 py-3 text-sm text-white outline-none" placeholder="ဥပမာ - အပြာရောင်အင်္ကျီ၊ အဖွဲ့အမည်"></div>
+            <p class="text-[10px] text-gray-500">ဖုန်းနံပါတ် မထည့်ပါ။ App က Customer Code ကို အလိုအလျောက်ပေးမယ်။</p>
+            <button class="w-full accent-btn py-3 rounded-xl text-white text-sm font-bold">Customer သိမ်းမယ်</button>
+        </form>
+    </div>
+
+    <!-- CHECKOUT SUMMARY MODAL -->
+    <div id="checkoutModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-sm rounded-2xl p-5 space-y-4 shadow-2xl border border-indigo-500/30">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2.5">
+                <h3 class="font-bold text-sm text-white flex items-center gap-1.5"><i data-lucide="receipt" class="accent-text w-4 h-4"></i> <span id="checkoutTitle">ငွေရှင်းရန် စာရင်း</span></h3>
+                <button onclick="closeCheckoutModal()" class="text-gray-400 hover:text-white cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs bg-slate-950/50 p-3.5 rounded-xl border border-gray-800">
+                <div class="flex justify-between text-gray-400">
+                    <span>စတင်ချိန် (Start Time):</span>
+                    <span id="checkoutStartTime" class="text-amber-400 font-semibold">--:--</span>
+                </div>
+                <div class="flex justify-between text-gray-300 gap-3">
+                    <span>ဆော့ကစားချိန် ကျသင့်ငွေ:</span>
+                    <span id="checkoutTimeCost" class="font-bold text-white text-right">0 ကျပ်</span>
+                </div>
+                <div id="checkoutCustomerInfo" class="hidden text-[11px] border-t border-gray-800 pt-2 text-emerald-300"></div>
+                
+                <div id="checkoutOrdersContainer" class="border-t border-gray-800/80 pt-2 space-y-1">
+                    <div class="text-[10px] text-gray-400 font-semibold mb-1">မှာယူထားသော စားသောက်ကုန်များ:</div>
+                    <div id="checkoutOrdersList" class="space-y-1 text-gray-300 max-h-28 overflow-y-auto pr-1"></div>
+                </div>
+
+                <div class="border-t border-gray-700 pt-2.5 flex justify-between items-center text-sm font-bold">
+                    <span class="text-white">စုစုပေါင်း ကျသင့်ငွေ:</span>
+                    <span id="checkoutGrandTotal" class="accent-text text-base">0 ကျပ်</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+                <button onclick="confirmCheckout(false)" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-indigo-400"></i> ရိုးရိုးရှင်းမည်
+                </button>
+                <button onclick="confirmCheckout(true)" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg transition cursor-pointer flex items-center justify-center gap-1">
+                    <i data-lucide="printer" class="w-3.5 h-3.5"></i> Printer ဖြင့် ရိုက်မည်
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEM ORDER MODAL -->
+    <div id="orderModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-sm rounded-2xl p-4 space-y-3">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-2.5">
+                <h3 class="font-bold text-xs text-white" data-i18n="orderModalTitle">ပစ္စည်း/မုန့် မှာယူမည်</h3>
+                <button onclick="closeOrderModal()" class="text-gray-400 hover:text-white cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto" id="modalProductGrid"></div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-card w-full max-w-lg rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <div class="flex justify-between items-center border-b border-gray-800 pb-3">
+                <h3 class="font-bold text-sm flex items-center gap-2"><i data-lucide="sliders" class="accent-text w-4 h-4"></i> <span data-i18n="settingsTitle">ဆက်တင်များနှင့် လမ်းညွှန်</span></h3>
+                <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white cursor-pointer"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+
+            <div class="space-y-3 text-xs border-b border-gray-800 pb-4">
+                <div class="font-bold text-white text-xs flex items-center gap-1"><i data-lucide="settings" class="w-3.5 h-3.5 accent-text"></i> <span data-i18n="secRateTitle">၁။ ဆိုင်နှုန်းထားများနှင့် ဘာသာစကား</span></div>
+                <div><label class="text-gray-400 block mb-1" data-i18n="shopNameLbl">ဆိုင်အမည်</label><input type="text" id="settingShopName" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-gray-400 block mb-1" data-i18n="psRateLbl">PS4 ၁ နာရီ (ကျပ်)</label><input type="number" id="settingPsRate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                    <div><label class="text-gray-400 block mb-1">ခုံသေး ၁ နာရီ (ကျပ်)</label><input type="number" id="settingPoolSmallRate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                    <div><label class="text-gray-400 block mb-1">ခုံကြီး ၁ နာရီ (ကျပ်)</label><input type="number" id="settingPoolLargeRate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                    <div><label class="text-gray-400 block mb-1">PS5 ၁ နာရီ (ကျပ်)</label><input type="number" id="settingPs5Rate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                    <div><label class="text-gray-400 block mb-1">Computer ၁ နာရီ (ကျပ်)</label><input type="number" id="settingComputerRate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                </div>
+                <div><label class="text-gray-400 block mb-1" data-i18n="poolGameRateLbl">ဘိလိယက် ၁ ပွဲ နှုန်းထား (ကျပ်)</label><input type="number" id="settingGameRate" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-gray-400 block mb-1" data-i18n="langLbl">ဘာသာစကား (Language)</label>
+                        <select onchange="changeLanguage(this.value)" id="langSelect" class="w-full bg-slate-900/50 text-xs text-gray-300 border border-gray-800 rounded-xl px-3 py-2 outline-none cursor-pointer">
+                            <option value="my">မြန်မာ (Myanmar)</option>
+                            <option value="en">English</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 block mb-1" data-i18n="themeLbl">အပြင်အဆင် (Theme)</label>
+                        <select onchange="changeTheme(this.value)" id="themeSelect" class="w-full bg-slate-900/50 text-xs text-gray-300 border border-gray-800 rounded-xl px-3 py-2 outline-none cursor-pointer">
+                            <option value="dark">Dark Gaming</option>
+                            <option value="light">Clean Light</option>
+                            <option value="emerald">Green Neon</option>
+                            <option value="ocean">Blue Ocean</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-gray-800 space-y-2">
+                    <div class="font-bold text-white text-xs">အသုံးနည်းသော ပစ္စည်းများကို ဖျောက်/ပြန်ပြရန်</div>
+                    <div id="productSettingsList" class="space-y-2"></div>
+                </div>
+                <div class="pt-2 border-t border-gray-800 space-y-2">
+                    <div class="font-bold text-white text-xs">Customer Free Promotion</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><label class="text-gray-400 block mb-1">Free ရရန် အခပေးကစားချိန် (နာရီ)</label><input id="settingPromoThreshold" type="number" min="0.5" max="10000" step="0.5" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                        <div><label class="text-gray-400 block mb-1">Free ပေးမည့်အချိန် (မိနစ်)</label><input id="settingPromoReward" type="number" min="1" max="100000" step="1" class="w-full bg-slate-900/50 border border-gray-800 rounded-xl px-3 py-2 text-white outline-none"></div>
+                    </div>
+                    <p class="text-[10px] text-gray-500">PS4 + PS5 + Computer အခပေးချိန်ကို ပေါင်းတွက်မည်။ Free သတ်မှတ်ချက် ပြောင်းလဲမှုကို save လုပ်သည့်အချိန်မှ စည်းမျဉ်းအသစ်အတိုင်း ပြန်တွက်မည်။</p>
+                </div>
+                <div class="pt-1">
+                    <button onclick="connectBluetoothPrinter()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white rounded-xl shadow cursor-pointer flex items-center justify-center gap-1.5">
+                        <i data-lucide="printer" class="w-4 h-4"></i> <span data-i18n="btPrinterBtn">Bluetooth ပရင်တာ ချိတ်ဆက်ရန်</span>
+                    </button>
+                </div>
+
+                <button onclick="saveSettings()" class="w-full py-2.5 accent-btn text-xs font-bold text-white rounded-xl cursor-pointer" data-i18n="saveSettingsBtn">ဆက်တင်များ သိမ်းဆည်းမည်</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- PWA INSTALL / OFFLINE SHELL (beta) ---
+        let deferredPrompt = null;
+        function isInstalledPWA() {
+            return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        }
+        function updateInstallUI() {
+            const container = document.getElementById('installContainer');
+            if (!container) return;
+            if (isInstalledPWA()) { container.classList.add('hidden'); return; }
+            if (deferredPrompt || /Android/i.test(navigator.userAgent)) container.classList.remove('hidden');
+        }
+        window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; updateInstallUI(); });
+        window.addEventListener('appinstalled', () => { deferredPrompt = null; const el=document.getElementById('installContainer'); if(el)el.classList.add('hidden'); });
+        async function triggerInstall() {
+            if (isInstalledPWA()) { const el=document.getElementById('installContainer'); if(el)el.classList.add('hidden'); return; }
+            if (!deferredPrompt) {
+                if (/Android/i.test(navigator.userAgent)) alert('Chrome Menu (⋮) ကိုနှိပ်ပြီး “Install app” သို့မဟုတ် “Add to Home screen” ကိုရွေးပါ။ အဲဒီရွေးချယ်မှုမရှိသေးပါက HTTPS၊ manifest/icon နဲ့ Service Worker ကို စစ်ပါ။');
+                else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) alert('Safari ရဲ့ Share ခလုတ်ကိုနှိပ်ပြီး “Add to Home Screen” ကိုရွေးပါ။');
+                else alert('Browser Menu ထဲက Install app သို့မဟုတ် Add to Home screen ကို စစ်ပါ။');
+                return;
+            }
+            try { await deferredPrompt.prompt(); const choice=await deferredPrompt.userChoice; deferredPrompt=null; const el=document.getElementById('installContainer'); if(el)el.classList.add('hidden'); }
+            catch (err) { console.warn('Install prompt failed', err); }
+        }
+        if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').then(() => updateInstallUI()).catch(err => console.warn('Service Worker registration failed', err)));
+        }
+        window.addEventListener('load', updateInstallUI);
+
+        // --- FIREBASE CONFIG ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAto7pibrqOrxaRrOExDmJQX11Ybv_9zPs",
+            authDomain: "my-website-1b6b7.firebaseapp.com",
+            projectId: "my-website-1b6b7",
+            storageBucket: "my-website-1b6b7.firebasestorage.app",
+            messagingSenderId: "634465659985",
+            appId: "1:634465659985:web:19d735af5bb9bacbdd5c70"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        if (db && typeof db.enablePersistence === 'function') {
+            db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn('Firestore offline persistence unavailable; Local Storage backup remains enabled.', err));
+        }
+
+        let activePosCategory = 'ALL';
+        let currentSelectingTarget = null;
+        let currentCheckoutTarget = null;
+        let totalRevenueToday = 0;
+        let gameRevenueToday = 0;
+        let posRevenueToday = 0;
+        let weeklyData = [0, 0, 0, 0, 0, 0, 0];
+        let hourlyChartInstance = null;
+        let weeklyChartInstance = null;
+        let bluetoothDevice = null;
+
+        let appState = {
+            shopName: "Game & Billiards Timer",
+            ps4Rate: 4000,
+            ps5Rate: 4000,
+            computerRate: 3000,
+            poolRate: 5000, // backward compatibility with older saved settings
+            poolSmallRate: 5000,
+            poolLargeRate: 7000,
+            poolGameRate: 1500,
+            theme: "dark",
+            lang: "my",
+            ps4Stations: [
+                { id: 101, name: "TV - 1 (PS4)", status: 'IDLE', elapsedSeconds: 0, startTime: null, orders: [] }
+            ],
+            ps5Stations: [],
+            computerStations: [],
+            poolTables: [
+                { id: 201, name: "ခုံသေး - ၁", size: 'small', status: 'IDLE', mode: 'TIMER', elapsedSeconds: 0, gamesPlayed: 0, startTime: null, orders: [] }
+            ],
+            products: [
+                { id: 1, name: "Coca Cola", price: 1500, category: "DRINKS" },
+                { id: 2, name: "မာမာခေါက်ဆွဲ", price: 2000, category: "SNACKS" },
+                { id: 3, name: "Myanmar Beer", price: 3500, category: "BEER" },
+                { id: 4, name: "Black Special Whisky", price: 15000, category: "LIQUOR" },
+                { id: 5, name: "Red Ruby ဆေးလိပ်", price: 2500, category: "CIGARETTE" }
+            ]
+        };
+
+        let activeGameDevice = 'ps4';
+        let activePoolSize = 'all';
+        let currentCustomerPicker = null;
+        let salesHistory = [];
+        let selectedCustomerId = null;
+        const CUSTOMER_PROMO_LOCAL_PREFIX = 'gbt_customer_promo_beta_';
+        const FULL_APP_LOCAL_PREFIX = 'gbt_full_app_beta_';
+        function emptyCustomerPromotion() {
+            return { version: 1, updatedAtMs: 0, settings: { thresholdHours: 10, rewardMinutes: 60 }, customers: [], records: [] };
+        }
+        let customerPromotion = emptyCustomerPromotion();
+
+        const translations = {
+            my: {
+                installPromptTitle: "App ကို ဖုန်းတွင် Install တင်ရန်",
+                installPromptSub: "Home Screen သို့ ချက်ချင်း ထည့်သွင်းပါ",
+                loginTitle: "အကောင့်ဝင်ရန် (Login)",
+                emailLabel: "အီးမေးလ် (Email)",
+                passLabel: "စကားဝှက် (Password)",
+                loginBtn: "အကောင့်ဝင်မည်",
+                settingsNav: "ဆက်တင်",
+                ps4Tab: "PS4 ဂိမ်းစက်များ",
+                poolTab: "ဘိလိယက်ခုံများ",
+                posTab: "မုန့်နှင့် အဖျော်ယမကာများ",
+                analyticsTab: "ဝင်ငွေနှင့် ဂရပ်များ",
+                newStation: "စက်အသစ်",
+                newTable: "ခုံအသစ်",
+                newProduct: "ပစ္စည်းအသစ်",
+                catAll: "အားလုံး",
+                catDrinks: "အချိုရည်",
+                catSnacks: "စားစရာ",
+                catBeer: "ဘီယာ",
+                catLiquor: "အရက်",
+                catCig: "ဆေးလိပ်",
+                totalRev: "စုစုပေါင်း ဝင်ငွေ",
+                gameRev: "ဆော့ချိန် ရငွေ",
+                posRev: "POS စားသောက်ကုန် ရငွေ",
+                peakHoursTitle: "နာရီအလိုက် လူစည်ကားမှု (Peak Hours)",
+                weeklyTrendTitle: "တစ်ပတ်အတွင်း ဝင်ငွေနှုန်း (Weekly Trend)",
+                orderModalTitle: "ပစ္စည်း/မုန့် မှာယူမည်",
+                settingsTitle: "ဆက်တင်များနှင့် လမ်းညွှန်",
+                secRateTitle: "၁။ ဆိုင်နှုန်းထားများနှင့် ဘာသာစကား",
+                shopNameLbl: "ဆိုင်အမည်",
+                psRateLbl: "PS4 ၁ နာရီ (ကျပ်)",
+                poolRateLbl: "ဘိလိယက် ၁ နာရီ (ကျပ်)",
+                poolGameRateLbl: "ဘိလိယက် ၁ ပွဲ နှုန်းထား (ကျပ်)",
+                langLbl: "ဘာသာစကား (Language)",
+                themeLbl: "အပြင်အဆင် (Theme)",
+                btPrinterBtn: "Bluetooth ပရင်တာ ချိတ်ဆက်ရန်",
+                saveSettingsBtn: "ဆက်တင်များ သိမ်းဆည်းမည်"
+            },
+            en: {
+                installPromptTitle: "Install App on Phone",
+                installPromptSub: "Add to Home Screen",
+                loginTitle: "Login to Account",
+                emailLabel: "Email Address",
+                passLabel: "Password",
+                loginBtn: "Sign In",
+                settingsNav: "Settings",
+                ps4Tab: "PS4 Stations",
+                poolTab: "Billiards Tables",
+                posTab: "POS & Drinks",
+                analyticsTab: "Analytics & Charts",
+                newStation: "New Station",
+                newTable: "New Table",
+                newProduct: "New Item",
+                catAll: "All",
+                catDrinks: "Drinks",
+                catSnacks: "Snacks",
+                catBeer: "Beer",
+                catLiquor: "Liquor",
+                catCig: "Cigarettes",
+                totalRev: "Total Revenue",
+                gameRev: "Gaming Revenue",
+                posRev: "POS Revenue",
+                peakHoursTitle: "Hourly Peak Hours",
+                weeklyTrendTitle: "Weekly Revenue Trend",
+                orderModalTitle: "Order Product / Snack",
+                settingsTitle: "Settings & Guide",
+                secRateTitle: "1. Shop Rates & Language",
+                shopNameLbl: "Shop Name",
+                psRateLbl: "PS4 1 Hour (MMK)",
+                poolRateLbl: "Pool 1 Hour (MMK)",
+                poolGameRateLbl: "Pool Per Game (MMK)",
+                langLbl: "Language",
+                themeLbl: "Color Theme",
+                btPrinterBtn: "Connect Bluetooth Printer",
+                saveSettingsBtn: "Save Settings"
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (window.lucide) lucide.createIcons();
+            setInterval(updateLiveTimers, 1000);
+            initCharts();
+
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    document.getElementById("authOverlay").classList.add("hidden");
+                    loadFromCloud();
+                } else {
+                    document.getElementById("authOverlay").classList.remove("hidden");
+                }
+            });
+        });
+
+        function changeLanguage(lang) {
+            appState.lang = lang;
+            applyTranslations();
+            saveToCloud();
+        }
+
+        function applyTranslations() {
+            const t = translations[appState.lang] || translations.my;
+            document.querySelectorAll("[data-i18n]").forEach(el => {
+                const key = el.getAttribute("data-i18n");
+                if(t[key]) el.innerText = t[key];
+            });
+            document.getElementById("langSelect").value = appState.lang;
+        }
+
+        function initCharts() {
+            if (typeof Chart === 'undefined') { hourlyChartInstance = null; weeklyChartInstance = null; return; }
+            const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
+            hourlyChartInstance = new Chart(ctxHourly, {
+                type: 'bar',
+                data: {
+                    labels: ['12AM', '3AM', '6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
+                    datasets: [{ label: 'Revenue', data: [0, 0, 0, 10000, 25000, 45000, 80000, 60000], backgroundColor: '#6366f1', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            const ctxWeekly = document.getElementById('weeklyChart').getContext('2d');
+            weeklyChartInstance = new Chart(ctxWeekly, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{ label: 'Weekly Trend', data: weeklyData, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function changeTheme(themeName) {
+            document.documentElement.setAttribute('data-theme', themeName);
+            appState.theme = themeName;
+            saveToCloud();
+        }
+
+        async function handleAuthSubmit() {
+            const email = document.getElementById("authEmail").value.trim();
+            const password = document.getElementById("authPassword").value.trim();
+            if (!email || !password) return alert("Email & Password required.");
+            try { await auth.signInWithEmailAndPassword(email, password); } 
+            catch (error) { alert("Login Error: " + error.message); }
+        }
+
+        function logout() {
+            auth.signOut().then(() => document.getElementById("authOverlay").classList.remove("hidden"));
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+            document.getElementById(`tab-${tabId}`).classList.remove("hidden");
+            document.querySelectorAll(".nav-item").forEach(el => {
+                el.classList.remove("text-indigo-400");
+                el.classList.add("text-gray-500");
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (tabId === 'ps4') selectGameDevice(activeGameDevice);
+            if (tabId === 'customers') renderCustomerSystem();
+            if (tabId === 'analytics') renderSalesHistory();
+            if(activeNav) {
+                activeNav.classList.remove("text-gray-500");
+                activeNav.classList.add("text-indigo-400");
+            }
+            if(tabId === 'analytics') {
+                updateAnalyticsUI();
+                if(hourlyChartInstance) hourlyChartInstance.update();
+                if(weeklyChartInstance) weeklyChartInstance.update();
+            }
+        }
+
+        function getStationList(type) {
+            if (type === 'ps4') return appState.ps4Stations || (appState.ps4Stations = []);
+            if (type === 'ps5') return appState.ps5Stations || (appState.ps5Stations = []);
+            if (type === 'computer') return appState.computerStations || (appState.computerStations = []);
+            return appState.poolTables || (appState.poolTables = []);
+        }
+
+        function getDeviceRate(type, item = null) {
+            if (type === 'ps4') return Number(appState.ps4Rate || 0);
+            if (type === 'ps5') return Number(appState.ps5Rate || 0);
+            if (type === 'computer') return Number(appState.computerRate || 0);
+            if (type === 'pool') {
+                const size = item?.size || inferPoolSize(item || {});
+                if (size === 'large') return Number(appState.poolLargeRate ?? appState.poolRate ?? 0);
+                return Number(appState.poolSmallRate ?? appState.poolRate ?? 0);
+            }
+            return 0;
+        }
+        function inferPoolSize(item) {
+            if (item?.size === 'large' || item?.size === 'small') return item.size;
+            const name = String(item?.name || '').toLowerCase();
+            return (name.includes('ကြီး') || name.includes('large') || name.includes('big')) ? 'large' : 'small';
+        }
+        function setPoolFilter(size) {
+            if (!['all','small','large'].includes(size)) size = 'all';
+            activePoolSize = size;
+            ['all','small','large'].forEach(key => {
+                const btn = document.getElementById(`poolFilter-${key}`);
+                if (!btn) return;
+                btn.classList.toggle('bg-indigo-600', key === size);
+                btn.classList.toggle('text-white', key === size);
+                btn.classList.toggle('text-gray-400', key !== size);
+            });
+            renderPoolGrid();
+        }
+
+        function selectGameDevice(type) {
+            if (!['ps4','ps5','computer'].includes(type)) return;
+            activeGameDevice = type;
+            ['ps4','ps5','computer'].forEach(device => {
+                const panel = document.getElementById(`gamePanel-${device}`);
+                const btn = document.getElementById(`gameDeviceBtn-${device}`);
+                if (panel) panel.classList.toggle('hidden', device !== type);
+                if (btn) {
+                    btn.classList.toggle('bg-indigo-600', device === type);
+                    btn.classList.toggle('text-white', device === type);
+                    btn.classList.toggle('text-gray-400', device !== type);
+                }
+            });
+            renderAllGrids();
+        }
+
+        function renderAllGrids() {
+            renderPs4Grid();
+            renderPs5Grid();
+            renderComputerGrid();
+            renderPoolGrid();
+            renderPosProducts();
+            updateAnalyticsUI();
+            renderCustomerSystem();
+            renderSalesHistory();
+            renderProductSettings();
+        }
+
+        function renderPs4Grid() { renderGamingGrid('ps4'); }
+        function renderPs5Grid() { renderGamingGrid('ps5'); }
+        function renderComputerGrid() { renderGamingGrid('computer'); }
+
+        function renderGamingGrid(type) {
+            const container = document.getElementById(type === 'ps4' ? 'ps4Grid' : type === 'ps5' ? 'ps5Grid' : 'computerGrid');
+            if (!container) return;
+            const list = getStationList(type);
+            if (!list.length) {
+                container.innerHTML = `<div class="col-span-2 md:col-span-3 glass-card rounded-xl p-5 text-center space-y-2"><div class="text-2xl">${type === 'computer' ? '🖥️' : '🎮'}</div><div class="font-bold text-sm">${deviceLabel(type)} စက် မရှိသေးပါ</div><p class="text-[11px] text-gray-400">“စက်အသစ်” ကိုနှိပ်ပြီး စတင်ထည့်ပါ။</p></div>`;
+                return;
+            }
+            container.innerHTML = '';
+            list.forEach(item => {
+                if (!item.orders) item.orders = [];
+                const timeCost = calcTimeCost(type, item);
+                const orderTotal = item.orders.reduce((sum, o) => sum + (Number(o.price || 0) * Number(o.qty || 0)), 0);
+                const totalCost = timeCost + orderTotal;
+                const ordersCount = item.orders.reduce((sum, o) => sum + Number(o.qty || 0), 0);
+                const customer = customerById(item.customerId);
+                const freeBalance = customer ? Number(customer.freeBalanceSeconds || 0) : 0;
+                const isRunning = item.status === 'RUNNING';
+                const freeMode = item.playMode === 'FREE';
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="glass-card station-card device-${type} rounded-xl p-3 flex flex-col justify-between space-y-2.5 min-w-0 ${isRunning ? 'station-running active-glow border-orange-400/60' : ''}">
+                        <div class="flex justify-between items-center gap-1"><span class="font-bold text-xs truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span><span class="text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ${isRunning ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-gray-400'}">${escapeHtml(item.status || 'IDLE')}</span></div>
+                        <div class="text-center py-2 bg-slate-950/40 rounded-lg border border-gray-800 space-y-0.5"><div class="text-xl font-mono font-bold tracking-tight">${formatTime(Number(item.elapsedSeconds || 0))}</div><div class="text-[9px] text-amber-400 font-semibold">Start: ${escapeHtml(item.startTime || '--:--')}</div><div class="text-[10px] text-gray-400">ကျသင့်ငွေ <span class="accent-text font-semibold">${totalCost.toLocaleString()} ကျပ်</span></div></div>
+                        <div class="space-y-1"><label class="text-[9px] text-gray-400">Customer (ဖုန်းနံပါတ်မလို)</label><button type="button" onclick="openStationCustomerPicker('${type}', ${Number(item.id)}, false)" class="station-customer-btn flex items-center justify-between gap-2 text-[10px] bg-slate-950/70 border border-gray-700 rounded-lg px-2 py-2 text-gray-200 ${item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0 ? 'opacity-60' : ''}" ${item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0 ? 'disabled' : ''}><span class="min-w-0 truncate">${customer ? `${escapeHtml(customer.name)} · ${escapeHtml(customer.code)}` : 'Customer ရွေးရန် / Guest'}</span><i data-lucide="chevron-down" class="w-3.5 h-3.5 shrink-0"></i></button></div>
+                        ${customer ? `<div class="text-[10px] ${freeMode ? 'text-emerald-300' : 'text-gray-400'}">${freeMode ? '🎁 Free Session' : '💵 အခပေး Session'} · Free လက်ကျန် ${formatMinutes(freeBalance)}</div>` : `<div class="text-[10px] text-gray-500">${freeMode ? 'Free mode — Customer ရွေးပါ' : 'Customer မရွေးထားပါ'}</div>`}
+                        <div class="grid grid-cols-2 gap-1.5"><button onclick="setStationPlayMode('${type}', ${Number(item.id)})" class="py-1.5 ${freeMode ? 'bg-emerald-700' : 'bg-slate-800'} border border-gray-700 text-white rounded-lg text-[10px] font-semibold">${freeMode ? 'Free Mode' : 'အခပေး Mode'}</button><button onclick="openOrderModal('${type}', ${Number(item.id)})" class="py-1.5 bg-indigo-600/30 border border-indigo-500/20 text-white rounded-lg text-[10px] font-semibold">ပစ္စည်း (${ordersCount}) +</button></div>
+                        <div class="grid grid-cols-2 gap-1.5"><button onclick="toggleTimer('${type}', ${Number(item.id)})" class="py-2 ${isRunning ? 'bg-amber-600' : 'bg-emerald-600'} text-white rounded-lg text-[10px] font-semibold">${isRunning ? 'ခဏရပ်မယ်' : (Number(item.elapsedSeconds || 0) > 0 ? 'ဆက်မယ်' : 'စမယ်')}</button><button onclick="openCheckoutModal('${type}', ${Number(item.id)})" class="py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[10px] font-bold">ငွေရှင်း</button></div>
+                        <button onclick="removeStation('${type}', ${Number(item.id)})" class="text-[9px] text-gray-500 hover:text-red-400 self-end px-1 py-0.5">စက်ဖယ်ရန်</button>
+                    </div>`);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function deviceLabel(type) {
+            return ({ps4:'PS4', ps5:'PS5', computer:'Computer', pool:'Billiards'})[type] || String(type || '');
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+
+        function formatMinutes(seconds) {
+            const minutes = Math.max(0, Math.floor(Number(seconds || 0) / 60));
+            const hours = Math.floor(minutes / 60), mins = minutes % 60;
+            return hours ? `${hours} နာရီ ${mins ? mins + ' မိနစ်' : ''}`.trim() : `${mins} မိနစ်`;
+        }
+
+        function calcTimeCost(type, item) {
+            const elapsed = Math.max(0, Number(item.elapsedSeconds || 0));
+            if (type === 'pool') return item.mode === 'TIMER' ? Math.ceil((elapsed / 3600) * getDeviceRate('pool', item)) : (Number(item.gamesPlayed || 0) * Number(appState.poolGameRate || 0));
+            let payableSeconds = elapsed;
+            if (item.playMode === 'FREE' && item.customerId) {
+                const c = customerById(item.customerId);
+                const freeSeconds = c ? Math.min(elapsed, Math.max(0, Number(c.freeBalanceSeconds || 0))) : 0;
+                payableSeconds = Math.max(0, elapsed - freeSeconds);
+            }
+            return Math.ceil((payableSeconds / 3600) * getDeviceRate(type));
+        }
+
+        function openStationCustomerPicker(type, id, autoStart = false) {
+            const item = getStationList(type).find(s => Number(s.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0) { alert('ကစားနေဆဲ session မှာ Customer မပြောင်းနိုင်ပါ။ ငွေရှင်းပြီးမှ ပြောင်းပါ။'); return; }
+            currentCustomerPicker = { type, id: Number(id), autoStart: !!autoStart };
+            const title = document.getElementById('stationCustomerPickerTitle');
+            if (title) title.textContent = `${item.name} — Customer ရွေးရန်`;
+            const search = document.getElementById('stationCustomerSearch');
+            if (search) search.value = '';
+            renderStationCustomerPicker();
+            document.getElementById('stationCustomerModal').classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+            setTimeout(() => search?.focus(), 50);
+        }
+        function closeStationCustomerPicker() {
+            const modal = document.getElementById('stationCustomerModal');
+            if (modal) modal.classList.add('hidden');
+            currentCustomerPicker = null;
+        }
+        function renderStationCustomerPicker() {
+            const target = document.getElementById('stationCustomerList');
+            if (!target) return;
+            const q = (document.getElementById('stationCustomerSearch')?.value || '').trim().toLowerCase();
+            const active = customerPromotion.customers.filter(c => c.active !== false && (!q || `${c.name} ${c.code} ${c.alias || ''}`.toLowerCase().includes(q)));
+            target.innerHTML = active.length ? active.map(c => `<button type="button" onclick="chooseStationCustomer('${escapeHtml(c.id)}')" class="w-full text-left flex items-center gap-3 p-3 rounded-xl border ${currentCustomerPicker && customerById(c.id) ? 'border-gray-700' : 'border-gray-800'} bg-slate-950/40 hover:bg-slate-800 touch-target"><span class="w-10 h-10 rounded-xl bg-indigo-500/15 accent-text flex items-center justify-center shrink-0"><i data-lucide="user-round" class="w-5 h-5"></i></span><span class="min-w-0 flex-1"><span class="block text-sm font-bold truncate">${escapeHtml(c.name)}</span><span class="block text-[10px] text-gray-400 truncate">${escapeHtml(c.code)}${c.alias ? ' · '+escapeHtml(c.alias) : ''}</span><span class="block text-[10px] text-gray-500 mt-1">စုချိန် ${formatMinutes(c.progressSeconds)} · Free ${formatMinutes(c.freeBalanceSeconds)}</span></span><i data-lucide="chevron-right" class="w-4 h-4 text-gray-500 shrink-0"></i></button>`).join('') : '<div class="text-center p-5 text-xs text-gray-500">ဒီရှာဖွေမှုနဲ့ကိုက်တဲ့ Customer မရှိပါ။ “အသစ်ထည့်” ကိုနှိပ်နိုင်ပါတယ်။</div>';
+            if (window.lucide) lucide.createIcons();
+        }
+        function chooseStationCustomer(customerId) {
+            if (!currentCustomerPicker) return;
+            const target = {...currentCustomerPicker};
+            setStationCustomer(target.type, target.id, customerId);
+            const modal = document.getElementById('stationCustomerModal'); if (modal) modal.classList.add('hidden');
+            currentCustomerPicker = null;
+            if (target.autoStart) toggleTimer(target.type, target.id, !customerId);
+            if (customerId) { const c = customerById(customerId); if (c) showCustomerToast(`${c.name} (${c.code}) ကို ရွေးပြီးပါပြီ။`); }
+        }
+        function chooseStationCustomerAsGuest() { chooseStationCustomer(''); }
+        function openCustomerCreateFromPicker() {
+            if (!currentCustomerPicker) { openCustomerModal(); return; }
+            document.getElementById('customerModal').classList.remove('hidden');
+            document.getElementById('customerNameInput').focus();
+        }
+
+        function setStationCustomer(type, id, customerId) {
+            const item = getStationList(type).find(s => Number(s.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0) { alert('ကစားနေဆဲ session ရဲ့ Customer ကို မပြောင်းနိုင်ပါ။ အရင် ငွေရှင်းပါ။'); renderAllGrids(); return; }
+            item.customerId = customerId || null;
+            if (!customerId && item.playMode === 'FREE') item.playMode = 'PAID';
+            saveToCloud(); renderAllGrids();
+        }
+
+        function setStationPlayMode(type, id) {
+            const item = getStationList(type).find(s => Number(s.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0) { alert('Session မစခင်မှသာ Paid/Free Mode ပြောင်းနိုင်ပါတယ်။'); return; }
+            const c = customerById(item.customerId);
+            if (item.playMode !== 'FREE') {
+                if (!c) { alert('Free Mode သုံးရန် Customer ကို အရင်ရွေးပါ။'); return; }
+                if (Number(c.freeBalanceSeconds || 0) <= 0) { alert('ဒီ Customer မှာ Free လက်ကျန်မရှိသေးပါ။ Owner/Admin အတည်ပြုချက်လိုအပ်နိုင်ပါတယ်။'); return; }
+                item.playMode = 'FREE';
+            } else item.playMode = 'PAID';
+            saveToCloud(); renderAllGrids();
+        }
+
+        function removeStation(type, id) {
+            const list = getStationList(type), item = list.find(s => Number(s.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0 || (item.orders || []).length) { alert('Timer/အချိန်/အမှာစာ ကျန်နေသော Station ကို မဖယ်နိုင်ပါ။ အရင် ငွေရှင်းပါ။'); return; }
+            if (!confirm(`${item.name} ကို Station စာရင်းမှ ဖယ်မလား? အရင် History ကို မဖျက်ပါ။`)) return;
+            const idx = list.findIndex(s => Number(s.id) === Number(id)); if (idx >= 0) list.splice(idx, 1);
+            saveToCloud(); renderAllGrids();
+        }
+
+        function renderPoolGrid() {
+            const container = document.getElementById("poolGrid");
+            if (!container) return;
+            container.innerHTML = "";
+            const allTables = appState.poolTables || (appState.poolTables = []);
+            allTables.forEach(item => { if (!item.size) item.size = inferPoolSize(item); });
+            const tables = allTables.filter(item => activePoolSize === 'all' || inferPoolSize(item) === activePoolSize);
+            if (!tables.length) {
+                const sizeLabel = activePoolSize === 'large' ? 'ခုံကြီး' : activePoolSize === 'small' ? 'ခုံသေး' : 'ဘိလိယက်ခုံ';
+                container.innerHTML = `<div class="col-span-2 md:col-span-3 glass-card rounded-xl p-5 text-center space-y-2"><div class="text-2xl">🎱</div><div class="font-bold text-sm">${sizeLabel} မရှိသေးပါ</div><p class="text-[11px] text-gray-400">အပေါ်က ခုံသေး/ခုံကြီး ခလုတ်ကိုနှိပ်ပြီး ထည့်ပါ။</p></div>`;
+                if (window.lucide) lucide.createIcons();
+                return;
+            }
+            tables.forEach(item => {
+                if (!Array.isArray(item.orders)) item.orders = [];
+                const size = inferPoolSize(item);
+                const sizeLabel = size === 'large' ? 'ခုံကြီး' : 'ခုံသေး';
+                const timeCost = item.mode === 'TIMER' ? Math.ceil((Number(item.elapsedSeconds || 0) / 3600) * getDeviceRate('pool', item)) : (Number(item.gamesPlayed || 0) * Number(appState.poolGameRate || 0));
+                const orderTotal = item.orders.reduce((sum, o) => sum + (Number(o.price || 0) * Number(o.qty || 0)), 0);
+                const totalCost = timeCost + orderTotal;
+                const ordersCount = item.orders.reduce((sum, o) => sum + Number(o.qty || 0), 0);
+                const running = item.status === 'RUNNING';
+                const sizePill = size === 'large' ? 'bg-orange-500/15 text-orange-300 border-orange-500/20' : 'bg-amber-500/15 text-amber-300 border-amber-500/20';
+                const modeIconBtn = item.mode === 'TIMER'
+                    ? `<button onclick="togglePoolMode(${Number(item.id)})" class="p-1.5 rounded-lg bg-indigo-950/80 text-indigo-300 border border-indigo-500/30 cursor-pointer text-[9px]">Timer</button>`
+                    : `<button onclick="togglePoolMode(${Number(item.id)})" class="p-1.5 rounded-lg bg-amber-950/80 text-amber-300 border border-amber-500/30 cursor-pointer text-[9px]">Games</button>`;
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="glass-card rounded-xl p-3 flex flex-col justify-between space-y-2.5 min-w-0 ${running ? 'active-glow border-emerald-500/50' : ''}">
+                        <div class="flex justify-between items-start gap-1"><div class="min-w-0"><div class="font-bold text-xs truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div><span class="inline-flex mt-1 px-2 py-0.5 rounded-full border ${sizePill} text-[9px] font-bold">${sizeLabel}</span></div>${modeIconBtn}</div>
+                        ${item.mode === 'TIMER' ? `<div class="text-center py-2 bg-slate-950/40 rounded-lg border border-gray-800 space-y-1"><div class="text-xl font-mono font-bold">${formatTime(Number(item.elapsedSeconds || 0))}</div><div class="text-[9px] text-amber-400 font-semibold">Start: ${escapeHtml(item.startTime || '--:--')}</div><div class="text-[10px] text-gray-400">နှုန်းထား ${getDeviceRate('pool', item).toLocaleString()} ကျပ်/နာရီ</div><div class="text-[10px] text-gray-400">ကျသင့်ငွေ <span class="accent-text font-semibold">${totalCost.toLocaleString()} ကျပ်</span></div></div>` : `<div class="text-center py-2 bg-slate-950/40 rounded-lg border border-gray-800 space-y-1"><div class="text-xs font-bold text-amber-300">${Number(item.gamesPlayed || 0)} ပွဲ</div><div class="text-[10px] text-gray-400">ကျသင့်ငွေ <span class="accent-text font-semibold">${totalCost.toLocaleString()} ကျပ်</span></div><button onclick="addPoolGame(${Number(item.id)})" class="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg cursor-pointer">+ ၁ ပွဲ</button></div>`}
+                        <div class="flex justify-between items-center text-[10px] bg-slate-950/30 px-2 py-1.5 rounded-lg"><span class="text-gray-300">ပစ္စည်း (${ordersCount})</span><button onclick="openOrderModal('pool', ${Number(item.id)})" class="p-1.5 rounded-lg bg-indigo-600/30 text-white cursor-pointer" aria-label="ပစ္စည်းထည့်"><i data-lucide="plus" class="w-3 h-3"></i></button></div>
+                        <div class="grid grid-cols-2 gap-1.5"><button onclick="togglePoolTimer(${Number(item.id)})" class="py-2 ${running ? 'bg-amber-600' : 'bg-emerald-600'} text-white rounded-lg text-[10px] font-bold cursor-pointer">${running ? 'ခဏရပ်' : 'စ / ဆက်'}</button><button onclick="openCheckoutModal('pool', ${Number(item.id)})" class="py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-bold cursor-pointer">ငွေရှင်း</button></div>
+                        <div class="grid grid-cols-2 gap-1"><button onclick="changePoolTableSize(${Number(item.id)})" class="py-1.5 border border-gray-700 text-gray-300 rounded-lg text-[9px] font-semibold" ${running || Number(item.elapsedSeconds || 0)>0 || ordersCount ? 'disabled title="အလုပ်လုပ်နေသောခုံကို မပြောင်းနိုင်ပါ"' : ''}>အရွယ်ပြောင်း</button><button onclick="removeStation('pool', ${Number(item.id)})" class="py-1.5 border border-gray-700 text-gray-400 rounded-lg text-[9px] font-semibold">ခုံဖယ်ရန်</button></div>
+                    </div>`);
+            });
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function addNewPoolTable(size) {
+            size = size === 'large' ? 'large' : 'small';
+            const list = getStationList('pool');
+            const num = list.filter(t => inferPoolSize(t) === size).length + 1;
+            const sizeLabel = size === 'large' ? 'ခုံကြီး' : 'ခုံသေး';
+            const defaultName = `${sizeLabel} - ${num}`;
+            const name = prompt('ဘိလိယက်ခုံအမည် ထည့်ပါ:', defaultName);
+            if (!name || !name.trim()) return;
+            const now = Date.now();
+            list.push({ id: now, name: name.trim(), size, status: 'IDLE', mode: 'TIMER', elapsedSeconds: 0, gamesPlayed: 0, startTime: null, orders: [] });
+            saveToCloud(); renderPoolGrid();
+        }
+
+        function changePoolTableSize(id) {
+            const item = getStationList('pool').find(t => Number(t.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING' || Number(item.elapsedSeconds || 0) > 0 || (item.orders || []).length) { alert('Timer၊ ကစားချိန် သို့မဟုတ် အမှာစာကျန်နေသောခုံ၏ အရွယ်အစားကို မပြောင်းနိုင်ပါ။ အရင်ရှင်းပါ။'); return; }
+            const next = prompt('အမျိုးအစားကို small သို့မဟုတ် large ရိုက်ထည့်ပါ။\nခုံသေး = small\nခုံကြီး = large', inferPoolSize(item));
+            if (next === null) return;
+            const val = next.trim().toLowerCase();
+            if (!['small','large','ခုံသေး','ခုံကြီး'].includes(val)) { alert('small သို့မဟုတ် large ကိုသာ ထည့်ပါ။'); return; }
+            item.size = ['large','ခုံကြီး'].includes(val) ? 'large' : 'small';
+            if (/^(ခုံသေး|ခုံကြီး)/.test(item.name)) item.name = item.name.replace(/^ခုံသေး|^ခုံကြီး/, item.size === 'large' ? 'ခုံကြီး' : 'ခုံသေး');
+            saveToCloud(); renderPoolGrid();
+        }
+
+        function openCheckoutModal(type, id) {
+            const list = getStationList(type);
+            let item = list.find(s => Number(s.id) === Number(id));
+            if (!item) return;
+            if (item.status === 'RUNNING') {
+                const now = Date.now();
+                if (item.lastTick) item.elapsedSeconds = Math.max(0, Number(item.elapsedSeconds || 0) + Math.floor((now - item.lastTick) / 1000));
+                item.status = 'PAUSED'; item.lastTick = null;
+                saveToCloud();
+            }
+            let timeCost = calcTimeCost(type, item);
+            let orderCost = item.orders.reduce((sum, o) => sum + (o.price * o.qty), 0);
+            let grandTotal = timeCost + orderCost;
+
+            currentCheckoutTarget = { type, id, item, timeCost, orderCost, grandTotal };
+
+            document.getElementById("checkoutTitle").innerText = `${item.name} - ငွေရှင်းရန် စာရင်း`;
+            document.getElementById("checkoutStartTime").innerText = item.startTime || 'မရှိပါ';
+            document.getElementById("checkoutTimeCost").innerText = timeCost.toLocaleString() + " ကျပ်";
+            document.getElementById("checkoutGrandTotal").innerText = grandTotal.toLocaleString() + " ကျပ်";
+            const customerInfo = document.getElementById('checkoutCustomerInfo');
+            if (customerInfo) {
+                const c = ['ps4','ps5','computer'].includes(type) ? customerById(item.customerId) : null;
+                if (c) {
+                    const usedFree = item.playMode === 'FREE' ? Math.min(Number(item.elapsedSeconds || 0), Number(c.freeBalanceSeconds || 0)) : 0;
+                    customerInfo.classList.remove('hidden');
+                    customerInfo.textContent = `${c.name} (${c.code}) · ${item.playMode === 'FREE' ? 'Free သုံးမည် ' + formatMinutes(usedFree) : 'အခပေးကစားချိန်ကို Promotion ထဲပေါင်းမည်'}`;
+                } else { customerInfo.classList.add('hidden'); customerInfo.textContent = ''; }
+            }
+
+            const ordersList = document.getElementById("checkoutOrdersList");
+            const ordersContainer = document.getElementById("checkoutOrdersContainer");
+            ordersList.innerHTML = "";
+
+            if ((item.orders || []).length > 0) {
+                ordersContainer.classList.remove("hidden");
+                (item.orders || []).forEach(o => {
+                    ordersList.innerHTML += `<div class="flex justify-between text-[11px]"><span>${o.name} (x${o.qty})</span><span class="font-semibold text-white">${(o.price * o.qty).toLocaleString()} ကျပ်</span></div>`;
+                });
+            } else {
+                ordersContainer.classList.add("hidden");
+            }
+            document.getElementById("checkoutModal").classList.remove("hidden");
+        }
+
+        function closeCheckoutModal() {
+            document.getElementById("checkoutModal").classList.add("hidden");
+            currentCheckoutTarget = null;
+        }
+
+        function confirmCheckout(usePrinter) {
+            if (!currentCheckoutTarget) return;
+            const { type, id, item, orderCost } = currentCheckoutTarget;
+            const timeCost = calcTimeCost(type, item);
+            const grandTotal = timeCost + orderCost;
+            if (['ps4','ps5','computer'].includes(type)) settleCustomerSession(type, item);
+
+            gameRevenueToday += timeCost;
+            posRevenueToday += orderCost;
+            totalRevenueToday = gameRevenueToday + posRevenueToday;
+            let dayIndex = new Date().getDay();
+            let adjustedDay = dayIndex === 0 ? 6 : dayIndex - 1;
+            weeklyData[adjustedDay] += grandTotal;
+
+            salesHistory.push({ id: `SALE-${Date.now()}`, at: new Date().toISOString(), stationType: type, stationName: item.name, customerId: item.customerId || null, customerName: customerById(item.customerId)?.name || '', playMode: item.playMode || 'PAID', timeCost, orderCost, total: grandTotal, elapsedSeconds: Number(item.elapsedSeconds || 0), orders: (item.orders || []).map(o => ({...o})) });
+            if (usePrinter) printViaBluetooth(item.name, timeCost, item.orders, grandTotal, item.startTime);
+
+            item.status = 'IDLE'; item.elapsedSeconds = 0; item.gamesPlayed = 0; item.startTime = null; item.orders = [];
+            item.customerId = null; item.playMode = 'PAID'; item.lastTick = null;
+            saveToCloud(); renderAllGrids(); closeCheckoutModal();
+        }
+
+        function settleCustomerSession(type, item) {
+            const c = customerById(item.customerId);
+            if (!c) return;
+            const elapsed = Math.max(0, Math.floor(Number(item.elapsedSeconds || 0)));
+            let freeUsed = 0;
+            let paidSeconds = elapsed;
+            if (item.playMode === 'FREE') {
+                freeUsed = Math.min(elapsed, Math.max(0, Math.floor(Number(c.freeBalanceSeconds || 0))));
+                paidSeconds = Math.max(0, elapsed - freeUsed);
+                c.freeBalanceSeconds = Math.max(0, Number(c.freeBalanceSeconds || 0) - freeUsed);
+                c.freeUsedSeconds = Number(c.freeUsedSeconds || 0) + freeUsed;
+                if (freeUsed > 0) addCustomerRecord('free_used', c.id, type, freeUsed, `Timer session: ${item.name}`);
+            }
+            if (paidSeconds > 0) {
+                c.progressSeconds = Number(c.progressSeconds || 0) + paidSeconds;
+                c.totalPaidSeconds = Number(c.totalPaidSeconds || 0) + paidSeconds;
+                c.totalPlayedSeconds = Number(c.totalPlayedSeconds || 0) + elapsed;
+                c.paidByDevice = c.paidByDevice || { ps4: 0, ps5: 0, computer: 0 };
+                c.paidByDevice[type] = Number(c.paidByDevice[type] || 0) + paidSeconds;
+                addCustomerRecord('paid_play', c.id, type, paidSeconds, `Timer session: ${item.name}`);
+            } else {
+                c.totalPlayedSeconds = Number(c.totalPlayedSeconds || 0) + elapsed;
+            }
+            c.lastPlayedAt = new Date().toISOString();
+            touchCustomerPromo();
+        }
+
+        function togglePoolMode(id) {
+            let item = appState.poolTables.find(t => t.id === id);
+            if(item) {
+                item.mode = item.mode === 'TIMER' ? 'GAME' : 'TIMER';
+                item.status = 'IDLE';
+                item.elapsedSeconds = 0;
+                item.gamesPlayed = 0;
+                item.startTime = null;
+                saveToCloud();
+                renderPoolGrid();
+            }
+        }
+
+        function addPoolGame(id) {
+            let item = appState.poolTables.find(t => t.id === id);
+            if(item) {
+                item.gamesPlayed += 1;
+                if(!item.startTime) item.startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                saveToCloud();
+                renderPoolGrid();
+            }
+        }
+
+        function togglePoolTimer(id) {
+            let item = appState.poolTables.find(t => t.id === id);
+            if(item) {
+                item.status = item.status === 'RUNNING' ? 'PAUSED' : 'RUNNING';
+                if(item.status === 'RUNNING') {
+                    item.lastTick = Date.now();
+                    if(!item.startTime) item.startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                saveToCloud();
+                renderPoolGrid();
+            }
+        }
+
+        function openOrderModal(type, id) {
+            currentSelectingTarget = { type, id };
+            const grid = document.getElementById("modalProductGrid");
+            grid.innerHTML = "";
+            (appState.products || []).filter(p => p.active !== false).forEach(p => {
+                grid.innerHTML += `<div onclick="orderProductToStation(${Number(p.id)})" class="glass-card p-2.5 rounded-xl text-center cursor-pointer hover:border-indigo-500 transition"><div class="font-bold text-[11px]">${escapeHtml(p.name)}</div><div class="text-[9px] text-emerald-400 font-semibold">${Number(p.price||0).toLocaleString()} ကျပ်</div></div>`;
+            });
+            document.getElementById("orderModal").classList.remove("hidden");
+        }
+
+        function closeOrderModal() {
+            document.getElementById("orderModal").classList.add("hidden");
+            currentSelectingTarget = null;
+        }
+
+        function orderProductToStation(productId) {
+            if (!currentSelectingTarget) return;
+            const prod = appState.products.find(p => p.id === productId);
+            const list = getStationList(currentSelectingTarget.type);
+            const item = list.find(s => Number(s.id) === Number(currentSelectingTarget.id));
+
+            if (prod && item) {
+                let existing = item.orders.find(o => o.id === productId);
+                if (existing) existing.qty += 1;
+                else item.orders.push({ id: prod.id, name: prod.name, price: prod.price, qty: 1 });
+                saveToCloud();
+                renderAllGrids();
+                closeOrderModal();
+            }
+        }
+
+        function filterPosCategory(cat) {
+            activePosCategory = cat;
+            ['ALL', 'DRINKS', 'SNACKS', 'BEER', 'LIQUOR', 'CIGARETTE'].forEach(c => {
+                const btn = document.getElementById(`posCat-${c}`);
+                if(btn) btn.className = c === cat ? "px-2.5 py-1 rounded-lg font-semibold bg-indigo-600 text-white whitespace-nowrap cursor-pointer" : "px-2.5 py-1 rounded-lg font-semibold bg-slate-800 text-gray-300 whitespace-nowrap cursor-pointer";
+            });
+            renderPosProducts();
+        }
+
+        function renderPosProducts() {
+            const container = document.getElementById("posGrid");
+            container.innerHTML = "";
+            const activeProducts = (appState.products || []).filter(p => p.active !== false);
+            const filtered = activePosCategory === 'ALL' ? activeProducts : activeProducts.filter(p => p.category === activePosCategory);
+            filtered.forEach(p => {
+                container.innerHTML += `<div class="glass-card p-3 rounded-xl text-center space-y-1"><div class="text-xl">${p.category==='DRINKS'?'🥤':p.category==='SNACKS'?'🍜':p.category==='BEER'?'🍺':p.category==='CIGARETTE'?'🚬':p.category==='LIQUOR'?'🥃':'🛍️'}</div><div class="font-bold text-xs">${escapeHtml(p.name)}</div><div class="text-[9px] text-indigo-300">${escapeHtml(p.category)}</div><div class="text-[10px] text-emerald-400 font-semibold">${Number(p.price||0).toLocaleString()} ကျပ်</div></div>`;
+            });
+        }
+
+        function addNewProductPrompt() {
+            const name = prompt("ပစ္စည်း အမည်:");
+            const price = parseFloat(prompt("ဈေးနှုန်း (ကျပ်):"));
+            const cat = prompt("Category (DRINKS / SNACKS / BEER / LIQUOR / CIGARETTE):", "BEER");
+            if (name && price) {
+                appState.products.push({ id: Date.now(), name, price, category: cat ? cat.toUpperCase() : 'SNACKS' });
+                saveToCloud();
+                renderPosProducts();
+            }
+        }
+
+        function addNewStation(type) {
+            if (type === 'pool') { addNewPoolTable('small'); return; }
+            if (!['ps4','ps5','computer'].includes(type)) type = 'ps4';
+            const list = getStationList(type);
+            const defaults = {ps4:`TV - ${list.length + 1} (PS4)`, ps5:`TV - ${list.length + 1} (PS5)`, computer:`Computer - ${list.length + 1}`};
+            const name = prompt('အမည် ထည့်ပါ:', defaults[type]);
+            if (!name || !name.trim()) return;
+            const now = Date.now();
+            const newItem = { id: now, name: name.trim(), status: 'IDLE', mode: 'TIMER', playMode: 'PAID', customerId: null, elapsedSeconds: 0, gamesPlayed: 0, startTime: null, orders: [] };
+            list.push(newItem);
+            saveToCloud(); renderAllGrids();
+        }
+
+        function toggleTimer(type, id, explicitGuest = false) {
+            const list = getStationList(type);
+            let item = list.find(s => Number(s.id) === Number(id));
+            if (item) {
+                const isStarting = item.status !== 'RUNNING';
+                if (isStarting && Number(item.elapsedSeconds || 0) === 0 && !explicitGuest && !item.customerId && ['ps4','ps5','computer'].includes(type) && customerPromotion.customers.some(c => c.active !== false)) {
+                    openStationCustomerPicker(type, id, true);
+                    return;
+                }
+                if (item.playMode === 'FREE') {
+                    const c = customerById(item.customerId);
+                    if (!c || Number(c.freeBalanceSeconds || 0) <= 0) { alert('Free Mode စရန် Customer Free လက်ကျန် လိုအပ်ပါတယ်။'); return; }
+                    const another = ['ps4','ps5','computer'].flatMap(t => getStationList(t)).some(s => Number(s.id) !== Number(item.id) && s.customerId === item.customerId && s.playMode === 'FREE' && (s.status === 'RUNNING' || Number(s.elapsedSeconds || 0) > 0));
+                    if (another) { alert('ဒီ Customer ရဲ့ Free session တစ်ခု ရှိနေပြီးသားပါ။ Free balance ထပ်မသုံးမိစေရန် အရင်ရှင်းပါ။'); return; }
+                }
+                item.status = item.status === 'RUNNING' ? 'PAUSED' : 'RUNNING';
+                if(item.status === 'RUNNING') {
+                    item.lastTick = Date.now();
+                    if(!item.startTime) item.startTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                saveToCloud(); renderAllGrids();
+            }
+        }
+
+        async function connectBluetoothPrinter() {
+            try {
+                if (!navigator.bluetooth) { alert("Web Bluetooth not supported."); return; }
+                bluetoothDevice = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] });
+                alert("Connected: " + bluetoothDevice.name);
+            } catch (error) { alert("Bluetooth Error: " + error); }
+        }
+
+        async function printViaBluetooth(stationName, timeCost, orders, total, startTime) {
+            let receipt = `=== ${appState.shopName} ===\nStation: ${stationName}\nStart: ${startTime || 'N/A'}\nTime Cost: ${timeCost} MMK\n`;
+            orders.forEach(o => { receipt += `${o.name} (x${o.qty}): ${o.price * o.qty} MMK\n`; });
+            receipt += `TOTAL: ${total} MMK\nThank You!\n\n`;
+            if (bluetoothDevice && bluetoothDevice.gatt.connected) {
+                try {
+                    const server = await bluetoothDevice.gatt.connect();
+                    const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+                    const char = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+                    await char.writeValue(new TextEncoder().encode(receipt));
+                    alert("Printed successfully!");
+                } catch(e) { console.log(e); }
+            } else { alert("Receipt Generated."); }
+        }
+
+        function updateAnalyticsUI() {
+            const set = (id, value) => { const el = document.getElementById(id); if (el) el.innerText = value; };
+            set("analyticsTotalRevenue", totalRevenueToday.toLocaleString() + " ကျပ်");
+            set("analyticsGameRevenue", gameRevenueToday.toLocaleString() + " ကျပ်");
+            set("analyticsPosRevenue", posRevenueToday.toLocaleString() + " ကျပ်");
+            if (weeklyChartInstance) { weeklyChartInstance.data.datasets[0].data = Array.isArray(weeklyData) ? weeklyData.slice() : [0,0,0,0,0,0,0]; }
+            if (hourlyChartInstance) {
+                const labels = hourlyChartInstance.data.labels || ['12AM','3AM','6AM','9AM','12PM','3PM','6PM','9PM'];
+                const buckets = new Array(labels.length).fill(0);
+                const today = new Date();
+                (salesHistory || []).filter(r => { const d = new Date(r.at); return d.toDateString() === today.toDateString(); }).forEach(r => {
+                    const hour = new Date(r.at).getHours(); const idx = Math.min(7, Math.floor(hour / 3)); buckets[idx] += Number(r.total || 0);
+                });
+                hourlyChartInstance.data.datasets[0].data = buckets;
+            }
+        }
+
+        function updateLiveTimers() {
+            const now = Date.now();
+            [...(appState.ps4Stations || []), ...(appState.ps5Stations || []), ...(appState.computerStations || []), ...(appState.poolTables || [])].forEach(item => {
+                if (item.status === 'RUNNING') {
+                    if (!item.lastTick) item.lastTick = now;
+                    const delta = Math.floor((now - item.lastTick) / 1000);
+                    if (delta >= 1) { item.elapsedSeconds += delta; item.lastTick = now; }
+                }
+            });
+            if(document.getElementById('tab-ps4') && !document.getElementById('tab-ps4').classList.contains('hidden')) { if (activeGameDevice==='ps4') renderPs4Grid(); else if (activeGameDevice==='ps5') renderPs5Grid(); else renderComputerGrid(); }
+            if(document.getElementById('tab-pool') && !document.getElementById('tab-pool').classList.contains('hidden')) renderPoolGrid();
+        }
+
+        function formatTime(sec) {
+            const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
+        function openSettingsModal() {
+            document.getElementById("settingShopName").value = appState.shopName;
+            document.getElementById("settingPsRate").value = appState.ps4Rate;
+            document.getElementById("settingPs5Rate").value = Number(appState.ps5Rate || 4000);
+            document.getElementById("settingComputerRate").value = Number(appState.computerRate || 3000);
+            document.getElementById("settingPoolSmallRate").value = Number(appState.poolSmallRate ?? appState.poolRate ?? 5000);
+            document.getElementById("settingPoolLargeRate").value = Number(appState.poolLargeRate ?? appState.poolRate ?? 7000);
+            document.getElementById("settingPromoThreshold").value = Number(customerPromotion.settings?.thresholdHours || 10);
+            document.getElementById("settingPromoReward").value = Number(customerPromotion.settings?.rewardMinutes || 60);
+            renderProductSettings();
+            document.getElementById("settingGameRate").value = appState.poolGameRate;
+            document.getElementById("themeSelect").value = appState.theme;
+            document.getElementById("langSelect").value = appState.lang;
+            document.getElementById("settingsModal").classList.remove("hidden");
+        }
+
+        function closeSettingsModal() { document.getElementById("settingsModal").classList.add("hidden"); }
+
+        function saveSettings() {
+            appState.shopName = document.getElementById("settingShopName").value || appState.shopName;
+            const ps4 = Number(document.getElementById("settingPsRate").value), ps5 = Number(document.getElementById("settingPs5Rate").value), computer = Number(document.getElementById("settingComputerRate").value), poolSmall = Number(document.getElementById("settingPoolSmallRate").value), poolLarge = Number(document.getElementById("settingPoolLargeRate").value), perGame = Number(document.getElementById("settingGameRate").value);
+            if ([ps4, ps5, computer, poolSmall, poolLarge, perGame].some(n => !Number.isFinite(n) || n < 0)) { alert('နှုန်းထားတွေကို 0 သို့မဟုတ် 0 ထက်ပိုတဲ့ ကိန်းဂဏန်းနဲ့ ထည့်ပါ။'); return; }
+            appState.ps4Rate = ps4; appState.ps5Rate = ps5; appState.computerRate = computer; appState.poolSmallRate = poolSmall; appState.poolLargeRate = poolLarge; appState.poolRate = poolSmall; appState.poolGameRate = perGame;
+            const threshold = Number(document.getElementById('settingPromoThreshold').value);
+            const reward = Number(document.getElementById('settingPromoReward').value);
+            if (!Number.isFinite(threshold) || threshold <= 0 || threshold > 10000 || !Number.isInteger(reward) || reward <= 0 || reward > 100000) { alert('Promotion နာရီက 0 ထက်ကြီးရမယ်၊ Free မိနစ်က အပေါင်းကိန်းပြည့် ဖြစ်ရမယ်။'); return; }
+            const oldThreshold = Number(customerPromotion.settings?.thresholdHours || 10);
+            const oldReward = Number(customerPromotion.settings?.rewardMinutes || 60);
+            if (threshold !== oldThreshold || reward !== oldReward) {
+                const thresholdSeconds = threshold * 3600;
+                const oldEligible = customerPromotion.customers.filter(c => c.active !== false).reduce((n,c) => n + Math.floor(Math.max(0, Number(c.progressSeconds || 0)) / Math.max(1, oldThreshold * 3600)), 0);
+                const newEligible = customerPromotion.customers.filter(c => c.active !== false).reduce((n,c) => n + Math.floor(Math.max(0, Number(c.progressSeconds || 0)) / Math.max(1, thresholdSeconds)), 0);
+                const detail = `Promotion စည်းမျဉ်းကို ${oldThreshold} နာရီ / Free ${oldReward} မိနစ် မှ ${threshold} နာရီ / Free ${reward} မိနစ် သို့ ပြောင်းမည်။ လက်ရှိစုထားပြီး မရှင်းရသေးသော အခပေးကစားချိန်ကို စည်းမျဉ်းအသစ်နဲ့ ပြန်တွက်မည်။ Free ရခွင့် pending အရေအတွက် ${oldEligible} ကြိမ်မှ ${newEligible} ကြိမ် ဖြစ်နိုင်ပါသည်။ ဆက်သိမ်းမလား?`;
+                if (!confirm(detail)) return;
+            }
+            customerPromotion.settings = { thresholdHours: threshold, rewardMinutes: reward };
+            touchCustomerPromo();
+            saveToCloud();
+            document.getElementById("headerShopName").innerText = appState.shopName;
+            renderAllGrids();
+            closeSettingsModal();
+            alert('ဆက်တင်များ သိမ်းပြီးပါပြီ။ လက်ရှိစုထားပြီး မရှင်းရသေးသောအချိန်ကို စည်းမျဉ်းအသစ်နဲ့ ပြန်တွက်ပါမည်။ Free ကို Owner/Admin က အတည်ပြုပြီးမှ ပေးပါမည်။');
+        }
+
+        function persistFullAppLocal(uid, localUpdatedAtMs = Date.now()) {
+            if (!uid) return;
+            const payload = { appState, totalRevenueToday, gameRevenueToday, posRevenueToday, weeklyData, customerPromotion, salesHistory, localUpdatedAtMs };
+            try { localStorage.setItem(FULL_APP_LOCAL_PREFIX + uid, JSON.stringify(payload)); } catch (err) { console.warn('Local app backup failed', err); }
+        }
+
+        // Beta Safe Mode: keep the existing Firebase login and read the existing shop document,
+        // but do not write into shops/{uid}. The original production app replaces that document
+        // without merge, so beta cloud writes could be lost (or interfere with the main app).
+        // Test data is persisted under beta-specific LocalStorage keys until a dedicated secure
+        // Firestore path/rules are configured and reviewed.
+        function saveToCloud() {
+            const user = auth.currentUser;
+            if (!user) return;
+            const localUpdatedAtMs = Date.now();
+            persistFullAppLocal(user.uid, localUpdatedAtMs);
+            persistCustomerPromotionLocal(user.uid);
+            updateNetworkStatus();
+        }
+
+        function normalizeAppState(loaded) {
+            const base = appState;
+            appState = { ...base, ...(loaded || {}) };
+            appState.ps4Stations = Array.isArray(loaded?.ps4Stations) ? loaded.ps4Stations : (Array.isArray(base.ps4Stations) ? base.ps4Stations : []);
+            appState.ps5Stations = Array.isArray(loaded?.ps5Stations) ? loaded.ps5Stations : [];
+            appState.computerStations = Array.isArray(loaded?.computerStations) ? loaded.computerStations : [];
+            appState.poolTables = Array.isArray(loaded?.poolTables) ? loaded.poolTables : (Array.isArray(base.poolTables) ? base.poolTables : []);
+            appState.products = Array.isArray(loaded?.products) ? loaded.products : (Array.isArray(base.products) ? base.products : []);
+            ['ps4Stations','ps5Stations','computerStations','poolTables'].forEach(key => appState[key].forEach(item => {
+                if (!Array.isArray(item.orders)) item.orders = [];
+                if (!Number.isFinite(Number(item.elapsedSeconds))) item.elapsedSeconds = 0;
+                if (['ps4','ps5','computer'].includes(item.deviceType) && !item.playMode) item.playMode = 'PAID';
+                if (key === 'poolTables' && !item.size) item.size = inferPoolSize(item);
+            }));
+            if (!Number.isFinite(Number(appState.ps5Rate))) appState.ps5Rate = 4000;
+            if (!Number.isFinite(Number(appState.computerRate))) appState.computerRate = 3000;
+            // Migrate older single billiards rate to new small/large rates without deleting old field.
+            if (!Number.isFinite(Number(loaded?.poolSmallRate))) appState.poolSmallRate = Number(loaded?.poolRate ?? base.poolRate ?? 5000);
+            if (!Number.isFinite(Number(loaded?.poolLargeRate))) appState.poolLargeRate = Number(loaded?.poolRate ?? base.poolRate ?? 7000);
+        }
+
+        function normalizeCustomerPromotion(value) {
+            const clean = emptyCustomerPromotion();
+            if (!value || typeof value !== 'object') return clean;
+            clean.version = 1;
+            clean.updatedAtMs = Number(value.updatedAtMs || 0);
+            clean.settings = { thresholdHours: Number(value.settings?.thresholdHours || 10), rewardMinutes: Number(value.settings?.rewardMinutes || 60) };
+            clean.customers = Array.isArray(value.customers) ? value.customers.map(c => ({
+                id: String(c.id || makeId()), code: String(c.code || generateCustomerCode()), name: String(c.name || 'Customer'), alias: String(c.alias || ''),
+                createdAt: c.createdAt || new Date().toISOString(), active: c.active !== false,
+                progressSeconds: Number(c.progressSeconds || 0), totalPaidSeconds: Number(c.totalPaidSeconds || 0), totalPlayedSeconds: Number(c.totalPlayedSeconds || 0),
+                freeBalanceSeconds: Number(c.freeBalanceSeconds || 0), freeUsedSeconds: Number(c.freeUsedSeconds || 0), freeGrantedMinutes: Number(c.freeGrantedMinutes || 0),
+                paidByDevice: { ps4: Number(c.paidByDevice?.ps4 || 0), ps5: Number(c.paidByDevice?.ps5 || 0), computer: Number(c.paidByDevice?.computer || 0) }, lastPlayedAt: c.lastPlayedAt || null
+            })) : [];
+            clean.records = Array.isArray(value.records) ? value.records : [];
+            return clean;
+        }
+
+        function loadFromCloud() {
+            const user = auth.currentUser;
+            if (!user) return;
+            customerPromotion = emptyCustomerPromotion();
+            salesHistory = [];
+            const localRaw = (() => { try { return JSON.parse(localStorage.getItem(FULL_APP_LOCAL_PREFIX + user.uid) || 'null'); } catch { return null; } })();
+            const localPromo = (() => { try { return JSON.parse(localStorage.getItem(CUSTOMER_PROMO_LOCAL_PREFIX + user.uid) || 'null'); } catch { return null; } })();
+            if (localRaw?.appState) {
+                normalizeAppState(localRaw.appState);
+                totalRevenueToday = Number(localRaw.totalRevenueToday || 0); gameRevenueToday = Number(localRaw.gameRevenueToday || 0); posRevenueToday = Number(localRaw.posRevenueToday || 0);
+                if (Array.isArray(localRaw.weeklyData)) weeklyData = localRaw.weeklyData;
+                if (Array.isArray(localRaw.salesHistory)) salesHistory = localRaw.salesHistory;
+            }
+            customerPromotion = normalizeCustomerPromotion(localPromo || localRaw?.customerPromotion);
+            // Render local data immediately so already-signed-in owners can still open the app offline.
+            document.getElementById("headerShopName").innerText = appState.shopName;
+            renderAllGrids(); updateNetworkStatus();
+
+            db.collection("shops").doc(user.uid).get().then(doc => {
+                let pushLocalApp = false;
+                if (doc.exists) {
+                    const remote = doc.data() || {};
+                    const remoteStamp = Number(remote.localUpdatedAtMs || 0);
+                    const localStamp = Number(localRaw?.localUpdatedAtMs || 0);
+                    const localAppIsNewer = !!localRaw?.appState && localStamp > remoteStamp;
+                    if (!localAppIsNewer) {
+                        if (remote.appState) normalizeAppState(remote.appState);
+                        totalRevenueToday = Number(remote.totalRevenueToday || 0); gameRevenueToday = Number(remote.gameRevenueToday || 0); posRevenueToday = Number(remote.posRevenueToday || 0);
+                        if (Array.isArray(remote.weeklyData)) weeklyData = remote.weeklyData;
+                        salesHistory = Array.isArray(remote.salesHistory) ? remote.salesHistory : [];
+                    } else {
+                        pushLocalApp = true;
+                    }
+                    const remotePromo = remote.customerPromotion ? normalizeCustomerPromotion(remote.customerPromotion) : null;
+                    const localPromoStamp = Math.max(Number(localPromo?.updatedAtMs || 0), Number(localRaw?.customerPromotion?.updatedAtMs || 0));
+                    const remotePromoStamp = Number(remotePromo?.updatedAtMs || 0);
+                    if (localPromo && localPromoStamp > remotePromoStamp) {
+                        customerPromotion = normalizeCustomerPromotion(localPromo);
+                        pushLocalApp = true;
+                    } else if (remotePromo) {
+                        customerPromotion = remotePromo;
+                    } else if (localPromo || localRaw?.customerPromotion) {
+                        customerPromotion = normalizeCustomerPromotion(localPromo || localRaw.customerPromotion);
+                    }
+                } else if (localRaw?.appState) {
+                    pushLocalApp = true;
+                }
+                if (appState.theme) document.documentElement.setAttribute('data-theme', appState.theme);
+                if (appState.lang) applyTranslations();
+                document.getElementById("headerShopName").innerText = appState.shopName;
+                persistCustomerPromotionLocal(user.uid);
+                const chosenStamp = Math.max(Number(localRaw?.localUpdatedAtMs || 0), Number(doc.exists ? doc.data()?.localUpdatedAtMs || 0 : 0));
+                persistFullAppLocal(user.uid, chosenStamp || Date.now());
+                renderAllGrids(); updateNetworkStatus();
+                if (pushLocalApp) saveToCloud();
+            }).catch(err => {
+                console.warn('Cloud unavailable; local beta data remains available.', err);
+                if (localRaw?.appState) {
+                    normalizeAppState(localRaw.appState);
+                    totalRevenueToday = Number(localRaw.totalRevenueToday || 0); gameRevenueToday = Number(localRaw.gameRevenueToday || 0); posRevenueToday = Number(localRaw.posRevenueToday || 0);
+                    weeklyData = Array.isArray(localRaw.weeklyData) ? localRaw.weeklyData : weeklyData;
+                    salesHistory = Array.isArray(localRaw.salesHistory) ? localRaw.salesHistory : [];
+                    customerPromotion = normalizeCustomerPromotion(localPromo || localRaw.customerPromotion);
+                }
+                document.getElementById("headerShopName").innerText = appState.shopName;
+                renderAllGrids(); updateNetworkStatus();
+            });
+        }
+
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        function updateNetworkStatus() {
+            const el = document.getElementById('networkStatus');
+            if (el) el.classList.toggle('hidden', navigator.onLine !== false);
+        }
+
+        // --- CUSTOMER / PROMOTION BETA MODULE ---
+        function makeId() { return (crypto?.randomUUID ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`); }
+        function generateCustomerCode() {
+            let code;
+            const codes = new Set(customerPromotion.customers.map(c => c.code));
+            do { code = 'C-' + Math.random().toString(36).slice(2,6).toUpperCase() + Math.random().toString(36).slice(2,4).toUpperCase(); } while (codes.has(code));
+            return code;
+        }
+        function customerById(id) { return id ? customerPromotion.customers.find(c => c.id === id) || null : null; }
+        function currentThresholdSeconds() { return Math.max(1, Math.round(Number(customerPromotion.settings?.thresholdHours || 10) * 3600)); }
+        function currentRewardSeconds() { return Math.max(60, Math.round(Number(customerPromotion.settings?.rewardMinutes || 60) * 60)); }
+        function pendingRewardCount(c) { return Math.floor(Math.max(0, Number(c.progressSeconds || 0)) / currentThresholdSeconds()); }
+        function touchCustomerPromo() { customerPromotion.updatedAtMs = Date.now(); const user = auth?.currentUser; if (user) persistCustomerPromotionLocal(user.uid); }
+        function persistCustomerPromotionLocal(uid) {
+            if (!uid) return;
+            try { localStorage.setItem(CUSTOMER_PROMO_LOCAL_PREFIX + uid, JSON.stringify(customerPromotion)); } catch (err) { console.warn('Customer local save failed', err); }
+        }
+        function addCustomerRecord(type, customerId, device, seconds, note='') {
+            customerPromotion.records.push({ id: makeId(), type, customerId, device, seconds: Math.floor(Number(seconds || 0)), note: String(note || ''), createdAt: new Date().toISOString() });
+            touchCustomerPromo();
+        }
+        function openCustomerModal() { document.getElementById('customerModal').classList.remove('hidden'); document.getElementById('customerNameInput').focus(); }
+        function closeCustomerModal() { document.getElementById('customerModal').classList.add('hidden'); }
+        function createCustomerFromModal(event) {
+            event.preventDefault();
+            const name = document.getElementById('customerNameInput').value.trim();
+            const alias = document.getElementById('customerAliasInput').value.trim();
+            if (!name) return;
+            const same = customerPromotion.customers.find(c => c.active !== false && c.name.trim().toLowerCase() === name.toLowerCase());
+            if (same && !confirm(`${name} ဆိုတဲ့နာမည် ရှိပြီးသား (${same.code}) ပါ။ Customer Code အသစ်နဲ့ ထပ်ထည့်မလား? မရောအောင် မှတ်ချက်ထည့်ရန် အကြံပြုပါတယ်။`)) return;
+            const c = { id: makeId(), code: generateCustomerCode(), name, alias, createdAt: new Date().toISOString(), active: true, progressSeconds: 0, totalPaidSeconds: 0, totalPlayedSeconds: 0, freeBalanceSeconds: 0, freeUsedSeconds: 0, freeGrantedMinutes: 0, paidByDevice: {ps4:0,ps5:0,computer:0}, lastPlayedAt: null };
+            customerPromotion.customers.push(c); selectedCustomerId = c.id;
+            const pendingPicker = currentCustomerPicker ? {...currentCustomerPicker} : null;
+            addCustomerRecord('created', c.id, null, 0, alias ? `မှတ်ချက်: ${alias}` : 'Customer created');
+            document.getElementById('customerNameInput').value = ''; document.getElementById('customerAliasInput').value = '';
+            closeCustomerModal(); saveToCloud(); renderAllGrids(); showCustomerToast(`${name} · ${c.code} ထည့်ပြီးပါပြီ။`);
+            if (pendingPicker) { currentCustomerPicker = pendingPicker; chooseStationCustomer(c.id); }
+        }
+        function showCustomerToast(message) {
+            const toast = document.getElementById('customerToast');
+            if (!toast) { alert(message); return; }
+            toast.textContent = message; toast.classList.remove('hidden'); clearTimeout(showCustomerToast._timer); showCustomerToast._timer = setTimeout(() => toast.classList.add('hidden'), 3000);
+        }
+        function approveCustomerFree(id) {
+            const c = customerById(id); if (!c) return;
+            const threshold = currentThresholdSeconds(), reward = currentRewardSeconds();
+            if (Number(c.progressSeconds || 0) < threshold) { alert('Free ရခွင့်အတွက် ကစားချိန်မပြည့်သေးပါ။'); return; }
+            if (!confirm(`${c.name} (${c.code}) ကို Free ${formatMinutes(reward)} အတည်ပြုပေးမလား? ${formatMinutes(threshold)} စုချိန်ကိုသာ နုတ်ပါမယ်။`)) return;
+            c.progressSeconds = Math.max(0, Number(c.progressSeconds || 0) - threshold);
+            c.freeBalanceSeconds = Number(c.freeBalanceSeconds || 0) + reward;
+            c.freeGrantedMinutes = Number(c.freeGrantedMinutes || 0) + Math.ceil(reward / 60);
+            addCustomerRecord('free_approved', c.id, null, reward, `Owner/Admin approved. Threshold=${threshold}s`);
+            saveToCloud(); renderAllGrids(); showCustomerToast(`Free ${formatMinutes(reward)} ကို ${c.name} အတွက် အတည်ပြုပြီးပါပြီ။`);
+        }
+        function archiveCustomer(id) {
+            const c = customerById(id); if (!c) return;
+            if (!confirm(`${c.name} (${c.code}) ကို Customer စာရင်းမှ Archive လုပ်မလား? History မဖျက်ပါ။`)) return;
+            c.active = false; addCustomerRecord('archived', c.id, null, 0, 'Customer archived');
+            appState.ps4Stations.forEach(s => { if (s.customerId === id && s.status !== 'RUNNING' && !Number(s.elapsedSeconds||0)) s.customerId = null; });
+            appState.ps5Stations.forEach(s => { if (s.customerId === id && s.status !== 'RUNNING' && !Number(s.elapsedSeconds||0)) s.customerId = null; });
+            appState.computerStations.forEach(s => { if (s.customerId === id && s.status !== 'RUNNING' && !Number(s.elapsedSeconds||0)) s.customerId = null; });
+            saveToCloud(); renderAllGrids();
+        }
+        function useCustomerFreePrompt(id) {
+            const c = customerById(id); if (!c) return;
+            const mins = Number(prompt(`${c.name} ရဲ့ Free လက်ကျန် ${formatMinutes(c.freeBalanceSeconds)} ပါ။ ဘယ်နှမိနစ်သုံးထားလဲ? (Timer session က Free Mode ဖြင့် ရှင်းထားရင် ဒီနေရာမှာ ထပ်မထည့်ပါနှင့်။)`, '60'));
+            if (!Number.isInteger(mins) || mins <= 0) return;
+            const seconds = mins * 60;
+            if (seconds > Number(c.freeBalanceSeconds || 0)) { alert('Free လက်ကျန်ထက် ပိုသုံးလို့မရပါ။'); return; }
+            c.freeBalanceSeconds -= seconds; c.freeUsedSeconds = Number(c.freeUsedSeconds || 0) + seconds;
+            addCustomerRecord('free_used', c.id, null, seconds, 'Manual Free usage entry');
+            saveToCloud(); renderAllGrids(); showCustomerToast('Free အသုံးပြုမှု မှတ်တမ်းတင်ပြီးပါပြီ။');
+        }
+        function adjustCustomerPaidTimePrompt(id) {
+            const c = customerById(id); if (!c) return;
+            const device = prompt('စက်ရွေးပါ: PS4 / PS5 / Computer', 'PS4'); if (!device) return;
+            const key = device.toLowerCase(); if (!['ps4','ps5','computer'].includes(key)) { alert('PS4, PS5, Computer ထဲက တစ်ခုရွေးပါ။'); return; }
+            const raw = prompt('အခပေးကစားချိန်ကို မိနစ်နဲ့ထည့်ပါ။ အမှားပြင်ရာမှာ အနုတ်တန်ဖိုးလည်း အသုံးပြုနိုင်ပါတယ်။', '60');
+            const mins = Number(raw); if (!Number.isInteger(mins) || !Number.isFinite(mins) || mins === 0 || Math.abs(mins) > 100000) return;
+            const seconds = mins * 60; c.progressSeconds = Math.max(0, Number(c.progressSeconds || 0) + seconds); c.totalPaidSeconds = Math.max(0, Number(c.totalPaidSeconds || 0) + seconds); c.paidByDevice[key] = Math.max(0, Number(c.paidByDevice?.[key] || 0) + seconds);
+            addCustomerRecord('manual_adjustment', c.id, key, seconds, 'Owner manual adjustment'); saveToCloud(); renderAllGrids();
+        }
+        function renderCustomerSystem() {
+            const active = customerPromotion.customers.filter(c => c.active !== false);
+            const approvalCount = active.reduce((n,c) => n + pendingRewardCount(c), 0);
+            const freeSec = active.reduce((n,c) => n + Number(c.freeBalanceSeconds || 0), 0);
+            const setText = (id, value) => { const el=document.getElementById(id); if(el) el.textContent=value; };
+            setText('customerMetricCount', String(active.length)); setText('customerMetricApproval', String(approvalCount)); setText('customerMetricFree', `${Math.floor(freeSec/60)} မိ`);
+            setText('customerPromoThresholdLabel', `${customerPromotion.settings.thresholdHours} နာရီ`); setText('customerPromoRewardLabel', formatMinutes(currentRewardSeconds()));
+            const approvals = document.getElementById('customerApprovals');
+            if (approvals) {
+                const ready = active.filter(c => pendingRewardCount(c) > 0).sort((a,b) => pendingRewardCount(b)-pendingRewardCount(a));
+                approvals.innerHTML = ready.length ? ready.map(c => `<div class="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 flex items-center gap-2"><div class="min-w-0 flex-1"><div class="font-bold text-xs">${escapeHtml(c.name)} <span class="text-gray-500">${escapeHtml(c.code)}</span></div><div class="text-[10px] text-gray-400 mt-1">${formatMinutes(c.progressSeconds)} စုချိန် · Free ရခွင့် ${pendingRewardCount(c)} ကြိမ်</div></div><button onclick="approveCustomerFree('${escapeHtml(c.id)}')" class="bg-emerald-600 text-white text-[10px] rounded-lg px-3 py-2 font-bold shrink-0">အတည်ပြု</button></div>`).join('') : '<p class="text-xs text-gray-500">Free ရခွင့်ပြည့်သူ မရှိသေးပါ။</p>';
+            }
+            const search = (document.getElementById('customerSearch')?.value || '').trim().toLowerCase();
+            const list = document.getElementById('customerList');
+            if (list) {
+                const filtered = active.filter(c => `${c.name} ${c.code} ${c.alias||''}`.toLowerCase().includes(search)).sort((a,b) => Number(b.totalPaidSeconds||0)-Number(a.totalPaidSeconds||0));
+                list.innerHTML = filtered.length ? filtered.map(c => `<button onclick="selectCustomerDetail('${escapeHtml(c.id)}')" class="w-full text-left rounded-xl border ${selectedCustomerId===c.id?'border-indigo-500/60 bg-indigo-500/10':'border-gray-800 bg-slate-950/20'} p-3 flex gap-2 items-center"><div class="w-9 h-9 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0"><i data-lucide="user-round" class="w-4 h-4 accent-text"></i></div><div class="min-w-0 flex-1"><div class="font-bold text-xs truncate">${escapeHtml(c.name)}</div><div class="text-[10px] text-gray-500 truncate">${escapeHtml(c.code)}${c.alias ? ' · '+escapeHtml(c.alias) : ''}</div><div class="text-[10px] text-gray-400 mt-1">စုထားချိန် ${formatMinutes(c.progressSeconds)} · Free ${formatMinutes(c.freeBalanceSeconds)}</div></div><div class="text-right shrink-0"><div class="text-xs font-bold accent-text">${formatMinutes(c.totalPaidSeconds)}</div><div class="text-[9px] text-gray-500">အခပေးချိန်</div></div></button>`).join('') : '<p class="text-xs text-gray-500 py-2">ရှာဖွေမှုနဲ့ကိုက်တဲ့ Customer မရှိပါ။</p>';
+            }
+            renderCustomerAnalysis();
+            renderCustomerDetail();
+            if (window.lucide) lucide.createIcons();
+        }
+        function selectCustomerDetail(id) { selectedCustomerId=id; renderCustomerSystem(); }
+        function renderCustomerAnalysis() {
+            const target = document.getElementById('customerAnalysis'); if (!target) return;
+            const period = document.getElementById('customerAnalysisPeriod')?.value || 'all';
+            const now = new Date(); let start = 0;
+            if (period==='today') { const d=new Date(); d.setHours(0,0,0,0); start=d.getTime(); }
+            else if (period==='week') { const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); start=d.getTime(); }
+            else if (period==='month') { const d=new Date(now.getFullYear(),now.getMonth(),1); start=d.getTime(); }
+            const agg = new Map();
+            customerPromotion.records.filter(r => r.type==='paid_play' && (!start || new Date(r.createdAt).getTime()>=start)).forEach(r => {
+                const c=customerById(r.customerId); if(!c)return; if(!agg.has(c.id))agg.set(c.id,{id:c.id,name:c.name,code:c.code,seconds:0,visits:0,devices:{ps4:0,ps5:0,computer:0}});
+                const a=agg.get(c.id); a.seconds+=Number(r.seconds||0); a.visits+=1; if(r.device && a.devices[r.device]!==undefined)a.devices[r.device]+=Number(r.seconds||0);
+            });
+            const rows=[...agg.values()].sort((a,b)=>b.seconds-a.seconds).slice(0,8);
+            target.innerHTML = rows.length ? rows.map((a,i)=>`<div class="flex items-center gap-2 border-b border-gray-800/70 last:border-0 py-2"><div class="w-6 h-6 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-bold">${i+1}</div><div class="min-w-0 flex-1"><div class="text-xs font-bold truncate">${escapeHtml(a.name)} <span class="text-gray-500 font-normal">${escapeHtml(a.code)}</span></div><div class="text-[9px] text-gray-500">PS4 ${formatMinutes(a.devices.ps4)} · PS5 ${formatMinutes(a.devices.ps5)} · PC ${formatMinutes(a.devices.computer)} · ${a.visits} ကြိမ်</div></div><div class="text-right text-xs font-bold accent-text">${formatMinutes(a.seconds)}</div></div>`).join('') : '<p class="text-xs text-gray-500">ရွေးထားတဲ့ကာလအတွင်း အခပေးကစားမှုမရှိသေးပါ။ Customer ကို Station မှာရွေးပြီး ငွေရှင်းလိုက်ရင် အလိုအလျောက်တွက်မယ်။</p>';
+        }
+        function renderCustomerDetail() {
+            const target = document.getElementById('customerHistoryPanel'); if (!target) return;
+            const c = customerById(selectedCustomerId);
+            if (!c) { target.classList.add('hidden'); target.innerHTML=''; return; }
+            const recs = customerPromotion.records.filter(r => r.customerId===c.id).slice(-8).reverse();
+            target.classList.remove('hidden');
+            target.innerHTML = `<div class="flex items-start justify-between gap-2"><div><div class="font-bold text-sm">${escapeHtml(c.name)}</div><div class="text-[10px] text-gray-500">${escapeHtml(c.code)}${c.alias?' · '+escapeHtml(c.alias):''}</div></div><button onclick="archiveCustomer('${escapeHtml(c.id)}')" class="text-[10px] text-red-400 border border-red-900/50 rounded-lg px-2 py-1">Archive</button></div><div class="grid grid-cols-2 gap-2"><div class="bg-slate-900/60 rounded-xl p-2"><div class="text-[9px] text-gray-500">Free ရရန် ကျန်စုချိန်</div><div class="text-sm font-bold">${formatMinutes(c.progressSeconds)}</div></div><div class="bg-slate-900/60 rounded-xl p-2"><div class="text-[9px] text-gray-500">Free လက်ကျန်</div><div class="text-sm font-bold text-emerald-300">${formatMinutes(c.freeBalanceSeconds)}</div></div><div class="bg-slate-900/60 rounded-xl p-2"><div class="text-[9px] text-gray-500">စုစုပေါင်း အခပေးချိန်</div><div class="text-sm font-bold">${formatMinutes(c.totalPaidSeconds)}</div></div><div class="bg-slate-900/60 rounded-xl p-2"><div class="text-[9px] text-gray-500">Free သုံးပြီးချိန်</div><div class="text-sm font-bold">${formatMinutes(c.freeUsedSeconds)}</div></div></div><div class="text-[10px] text-gray-400">စက်အလိုက် အခပေးချိန်: PS4 ${formatMinutes(c.paidByDevice?.ps4)} · PS5 ${formatMinutes(c.paidByDevice?.ps5)} · Computer ${formatMinutes(c.paidByDevice?.computer)}</div><div class="flex flex-wrap gap-2"><button onclick="useCustomerFreePrompt('${escapeHtml(c.id)}')" class="flex-1 min-w-[110px] bg-emerald-700 rounded-lg py-2 text-[10px] font-bold">Manual Free သုံးမှတ်တမ်း</button><button onclick="adjustCustomerPaidTimePrompt('${escapeHtml(c.id)}')" class="flex-1 min-w-[110px] bg-slate-800 border border-gray-700 rounded-lg py-2 text-[10px] font-bold">အချိန် ပြင်/ထည့်</button></div><div class="font-bold text-xs pt-1">နောက်ဆုံး မှတ်တမ်း</div>${recs.length?recs.map(r=>`<div class="flex justify-between gap-2 py-1 border-b border-gray-800/70 text-[10px]"><span class="text-gray-300">${escapeHtml(recordLabel(r.type))} · ${escapeHtml(deviceLabel(r.device)||'—')}<span class="block text-[9px] text-gray-500">${new Date(r.createdAt).toLocaleString()}</span></span><span class="text-right text-gray-400 shrink-0">${formatMinutes(r.seconds||0)}</span></div>`).join(''):'<p class="text-[10px] text-gray-500">History မရှိသေးပါ။</p>'}`;
+        }
+        function recordLabel(type) { return ({created:'Customer ထည့်',paid_play:'အခပေးကစား',free_approved:'Free အတည်ပြု',free_used:'Free သုံး',manual_adjustment:'အချိန်ပြင်',archived:'Archive'})[type] || type || 'Record'; }
+        function exportCustomerCsv() {
+            const rows=[['date','customer_name','customer_code','event','device','seconds','note'],...customerPromotion.records.map(r=>{const c=customerById(r.customerId);return [r.createdAt,c?.name||'',c?.code||'',recordLabel(r.type),deviceLabel(r.device),r.seconds||0,r.note||'']})];
+            const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'); downloadBlob(`customer-history-${new Date().toISOString().slice(0,10)}.csv`,'﻿'+csv,'text/csv;charset=utf-8');
+        }
+        function exportSalesHistoryCsv() {
+            const rows=[['date','station_type','station_name','customer','time_cost','order_cost','total','elapsed_seconds'],...(salesHistory||[]).map(r=>[r.at,deviceLabel(r.stationType),r.stationName,r.customerName||'',r.timeCost,r.orderCost,r.total,r.elapsedSeconds])];
+            const csv=rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n'); downloadBlob(`sales-history-${new Date().toISOString().slice(0,10)}.csv`,'﻿'+csv,'text/csv;charset=utf-8');
+        }
+        function downloadBlob(name, content, mime) { const blob=new Blob([content],{type:mime}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); }
+        function backupCustomerData() { const pack={app:'Game & Billiards Timer Customer Promotion Beta',version:1,exportedAt:new Date().toISOString(),customerPromotion}; downloadBlob(`customer-promotion-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(pack,null,2),'application/json'); }
+        function renderSalesHistory() {
+            const el=document.getElementById('salesHistoryList'); if(!el)return;
+            const rows=(salesHistory||[]).slice(-10).reverse();
+            el.innerHTML=rows.length?rows.map(r=>`<div class="flex justify-between gap-3 border-b border-gray-800/70 last:border-0 py-2"><div class="min-w-0"><div class="text-xs font-bold truncate">${escapeHtml(r.stationName)} ${r.customerName?'· '+escapeHtml(r.customerName):''}</div><div class="text-[10px] text-gray-500">${new Date(r.at).toLocaleString()} · ${deviceLabel(r.stationType)}</div></div><div class="text-xs font-bold accent-text whitespace-nowrap">${Number(r.total||0).toLocaleString()} ကျပ်</div></div>`).join(''):'<p class="text-xs text-gray-500">အရောင်းမှတ်တမ်းမရှိသေးပါ။</p>';
+        }
+        function renderProductSettings() {
+            const el=document.getElementById('productSettingsList'); if(!el)return;
+            el.innerHTML=(appState.products||[]).map(p=>`<div class="flex items-center justify-between gap-2 bg-slate-900/40 border border-gray-800 rounded-lg px-2 py-2"><div class="min-w-0"><div class="text-[10px] font-semibold truncate">${escapeHtml(p.name)}</div><div class="text-[9px] text-gray-500">${Number(p.price||0).toLocaleString()} ကျပ် · ${escapeHtml(p.category||'')}</div></div><button onclick="toggleProductActive(${Number(p.id)})" class="text-[9px] rounded-md px-2 py-1 ${p.active===false?'bg-emerald-800 text-white':'bg-slate-700 text-gray-200'}">${p.active===false?'ပြန်ဖွင့်':'ဖျောက်'}</button></div>`).join('') || '<p class="text-[10px] text-gray-500">ပစ္စည်းမရှိပါ။</p>';
+        }
+        function toggleProductActive(id) { const p=(appState.products||[]).find(x=>Number(x.id)===Number(id)); if(!p)return; p.active = p.active===false ? true : false; saveToCloud(); renderAllGrids(); }
+
+        function initCustomerSearchEvents() {
+            const search=document.getElementById('customerSearch'); if(search && !search.dataset.bound){search.dataset.bound='1';search.addEventListener('input',renderCustomerSystem);}
+        }
+
+        // Run once the DOM exists; Firebase login behavior above remains unchanged.
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        document.addEventListener('DOMContentLoaded', () => {
+            const search = document.getElementById('customerSearch');
+            if (search) search.addEventListener('input', renderCustomerSystem);
+            const stationSearch = document.getElementById('stationCustomerSearch');
+            if (stationSearch) stationSearch.addEventListener('input', renderStationCustomerPicker);
+            updateNetworkStatus();
+        });
+    </script>
+</body>
+</html>
